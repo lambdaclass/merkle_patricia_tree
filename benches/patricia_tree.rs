@@ -4,41 +4,23 @@ use rand::{distributions::Standard, prelude::*};
 use std::collections::HashMap;
 
 fn criterion_benchmark(c: &mut Criterion) {
-    c.bench_function("PatriciaTree<i32>::get() 1k", bench_get::<i32, 1_000>);
-    c.bench_function("PatriciaTree<i32>::get() 10k", bench_get::<i32, 10_000>);
-    c.bench_function("PatriciaTree<i32>::get() 100k", bench_get::<i32, 100_000>);
-    c.bench_function("PatriciaTree<i32>::get() 1M", bench_get::<i32, 1_000_000>);
+    c.benchmark_group("PatriciaTree::<i32>::get()")
+        .bench_function("1k", bench_get::<i32, 1_000>)
+        .bench_function("10k", bench_get::<i32, 10_000>)
+        .bench_function("100k", bench_get::<i32, 100_000>)
+        .bench_function("1M", bench_get::<i32, 1_000_000>);
 
-    c.bench_function("PatriciaTree<i32>::insert() 1k", bench_insert::<i32, 1_000>);
-    c.bench_function(
-        "PatriciaTree<i32>::insert() 10k",
-        bench_insert::<i32, 10_000>,
-    );
-    c.bench_function(
-        "PatriciaTree<i32>::insert() 100k",
-        bench_insert::<i32, 100_000>,
-    );
-    c.bench_function(
-        "PatriciaTree<i32>::insert() 1M",
-        bench_insert::<i32, 1_000_000>,
-    );
+    c.benchmark_group("PatriciaTree::<i32>::insert()")
+        .bench_function("1k", bench_insert::<i32, 1_000>)
+        .bench_function("10k", bench_insert::<i32, 10_000>)
+        .bench_function("100k", bench_insert::<i32, 100_000>)
+        .bench_function("1M", bench_insert::<i32, 1_000_000>);
 
-    c.bench_function(
-        "PatriciaTree<i32>::insert() override 1k",
-        bench_insert_override::<i32, 1_000>,
-    );
-    c.bench_function(
-        "PatriciaTree<i32>::insert() override 10k",
-        bench_insert_override::<i32, 10_000>,
-    );
-    c.bench_function(
-        "PatriciaTree<i32>::insert() override 100k",
-        bench_insert_override::<i32, 100_000>,
-    );
-    c.bench_function(
-        "PatriciaTree<i32>::insert() override 1M",
-        bench_insert_override::<i32, 1_000_000>,
-    );
+    c.benchmark_group("PatriciaTree::<i32>::insert() with override")
+        .bench_function("1k", bench_insert_override::<i32, 1_000>)
+        .bench_function("10k", bench_insert_override::<i32, 10_000>)
+        .bench_function("100k", bench_insert_override::<i32, 100_000>)
+        .bench_function("1M", bench_insert_override::<i32, 1_000_000>);
 }
 
 criterion_group!(benches, criterion_benchmark);
