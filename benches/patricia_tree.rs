@@ -10,6 +10,12 @@ fn criterion_benchmark(c: &mut Criterion) {
         .bench_function("100k", bench_get::<i32, 100_000>)
         .bench_function("1M", bench_get::<i32, 1_000_000>);
 
+    c.benchmark_group("PatriciaTree::<i32>::get() nonexistent")
+        .bench_function("1k", bench_get_nonexistent::<i32, 1_000>)
+        .bench_function("10k", bench_get_nonexistent::<i32, 10_000>)
+        .bench_function("100k", bench_get_nonexistent::<i32, 100_000>)
+        .bench_function("1M", bench_get_nonexistent::<i32, 1_000_000>);
+
     c.benchmark_group("PatriciaTree::<i32>::insert()")
         .bench_function("1k", bench_insert::<i32, 1_000>)
         .bench_function("10k", bench_insert::<i32, 10_000>)
@@ -57,6 +63,40 @@ where
 
     // Run the benchmark.
     let mut key_iter = all_keys.iter().cycle();
+    b.iter(|| black_box(tree.get(key_iter.next().unwrap())));
+}
+
+fn bench_get_nonexistent<T, const N: usize>(b: &mut Bencher)
+where
+    Standard: Distribution<T>,
+{
+    // Generate a completely random Patricia tree.
+    let mut tree = PatriciaTree::<T>::new();
+    let mut all_keys = Vec::with_capacity(N);
+
+    while all_keys.len() < N {
+        let key = random::<[u8; 32]>();
+        let value = random::<T>();
+
+        if tree.insert(&key, value).is_none() {
+            all_keys.push(key);
+        }
+    }
+
+    // Generate random nonexisting keys (for removal).
+    let mut removal_keys = HashSet::new();
+    while removal_keys.len() < 1024 {
+        let key = random::<[u8; 32]>();
+
+        if tree.get(&key).is_none() {
+            removal_keys.insert(key);
+        }
+    }
+
+    let removal_keys = removal_keys.into_iter().collect::<Vec<_>>();
+
+    // Run the benchmark.
+    let mut key_iter = removal_keys.iter().cycle();
     b.iter(|| black_box(tree.get(key_iter.next().unwrap())));
 }
 
@@ -175,19 +215,19 @@ where
     }
 
     // Generate random nonexisting keys (for removal).
-    let mut insert_data = HashSet::new();
-    while insert_data.len() < 1024 {
+    let mut removal_keys = HashSet::new();
+    while removal_keys.len() < 1024 {
         let key = random::<[u8; 32]>();
 
         if tree.get(&key).is_none() {
-            insert_data.insert(key);
+            removal_keys.insert(key);
         }
     }
 
-    let insert_data = insert_data.into_iter().collect::<Vec<_>>();
+    let removal_keys = removal_keys.into_iter().collect::<Vec<_>>();
 
     // Run the benchmark.
-    let mut key_iter = insert_data.iter().cycle();
+    let mut key_iter = removal_keys.iter().cycle();
     b.iter_batched(
         || tree.clone(),
         |mut tree| black_box(tree.remove(key_iter.next().unwrap())),
