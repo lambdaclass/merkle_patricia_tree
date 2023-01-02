@@ -3,4 +3,10 @@ name = "patricia-tree"
 version = "0.1.0"
 edition = "2021"
 
-[dependencies]
+[[bench]]
+name = "patricia_tree"
+harness = false
+
+[dev-dependencies]
+criterion = "0.4.0"
+rand = "0.8.5"
