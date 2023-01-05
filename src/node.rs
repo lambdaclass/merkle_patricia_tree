@@ -4,7 +4,6 @@ use crate::{
     TreePath,
 };
 use digest::{Digest, Output};
-use generic_array::ArrayLength;
 use slab::Slab;
 
 /// A node within the Patricia Merkle tree.
@@ -19,7 +18,6 @@ pub enum Node<V, H>
 where
     V: TreePath,
     H: Digest,
-    <H::OutputSize as ArrayLength<u8>>::ArrayType: std::convert::From<Output<H>>,
 {
     Branch(BranchNode<V, H>),
     LeafBranch(BranchNode<V, H>, LeafNode<V, H>),
@@ -34,12 +32,11 @@ impl<V, H> Node<V, H>
 where
     V: TreePath,
     H: Digest,
-    <H::OutputSize as ArrayLength<u8>>::ArrayType: std::convert::From<Output<H>>,
 {
     pub fn get<'a, I>(
         &'a self,
         nodes: &'a Slab<Node<V, H>>,
-        values: &'a Slab<(<H::OutputSize as ArrayLength<u8>>::ArrayType, V)>,
+        values: &'a Slab<(Output<H>, V)>,
         full_path: &V::Path,
         mut path_iter: NibbleIterator<I>,
     ) -> Option<&V>
@@ -72,7 +69,7 @@ where
     pub fn insert<I>(
         self,
         nodes: &mut Slab<Node<V, H>>,
-        values: &mut Slab<(<H::OutputSize as ArrayLength<u8>>::ArrayType, V)>,
+        values: &mut Slab<(Output<H>, V)>,
         full_path: &V::Path,
         mut path_iter: NibbleIterator<I>,
         value: V,
@@ -110,7 +107,6 @@ impl<V, H> From<BranchNode<V, H>> for Node<V, H>
 where
     V: TreePath,
     H: Digest,
-    <H::OutputSize as ArrayLength<u8>>::ArrayType: std::convert::From<Output<H>>,
 {
     fn from(value: BranchNode<V, H>) -> Self {
         Self::Branch(value)
@@ -121,7 +117,6 @@ impl<V, H> From<(BranchNode<V, H>, LeafNode<V, H>)> for Node<V, H>
 where
     V: TreePath,
     H: Digest,
-    <H::OutputSize as ArrayLength<u8>>::ArrayType: std::convert::From<Output<H>>,
 {
     fn from(value: (BranchNode<V, H>, LeafNode<V, H>)) -> Self {
         Self::LeafBranch(value.0, value.1)
@@ -132,7 +127,6 @@ impl<V, H> From<ExtensionNode<V, H>> for Node<V, H>
 where
     V: TreePath,
     H: Digest,
-    <H::OutputSize as ArrayLength<u8>>::ArrayType: std::convert::From<Output<H>>,
 {
     fn from(value: ExtensionNode<V, H>) -> Self {
         Self::Extension(value)
@@ -143,7 +137,6 @@ impl<V, H> From<(ExtensionNode<V, H>, LeafNode<V, H>)> for Node<V, H>
 where
     V: TreePath,
     H: Digest,
-    <H::OutputSize as ArrayLength<u8>>::ArrayType: std::convert::From<Output<H>>,
 {
     fn from(value: (ExtensionNode<V, H>, LeafNode<V, H>)) -> Self {
         Self::LeafExtension(value.0, value.1)
@@ -154,7 +147,6 @@ impl<V, H> From<LeafNode<V, H>> for Node<V, H>
 where
     V: TreePath,
     H: Digest,
-    <H::OutputSize as ArrayLength<u8>>::ArrayType: std::convert::From<Output<H>>,
 {
     fn from(value: LeafNode<V, H>) -> Self {
         Self::Leaf(value)

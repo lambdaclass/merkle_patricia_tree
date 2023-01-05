@@ -1,7 +1,6 @@
 use super::LeafNode;
 use crate::{nibble::NibbleIterator, node::Node, util::build_value, TreePath};
 use digest::{Digest, Output};
-use generic_array::ArrayLength;
 use slab::Slab;
 use std::marker::PhantomData;
 
@@ -21,7 +20,6 @@ impl<V, H> BranchNode<V, H>
 where
     V: TreePath,
     H: Digest,
-    <H::OutputSize as ArrayLength<u8>>::ArrayType: std::convert::From<Output<H>>,
 {
     pub fn new(choices: [Option<usize>; 16]) -> Self {
         Self {
@@ -33,7 +31,7 @@ where
     pub fn get<'a, I>(
         &self,
         nodes: &'a Slab<Node<V, H>>,
-        values: &'a Slab<(<H::OutputSize as ArrayLength<u8>>::ArrayType, V)>,
+        values: &'a Slab<(Output<H>, V)>,
         full_path: &V::Path,
         mut path_iter: NibbleIterator<I>,
     ) -> Option<&'a V>
@@ -56,7 +54,7 @@ where
     pub fn insert<I>(
         mut self,
         nodes: &mut Slab<Node<V, H>>,
-        values: &mut Slab<(<H::OutputSize as ArrayLength<u8>>::ArrayType, V)>,
+        values: &mut Slab<(Output<H>, V)>,
         full_path: &V::Path,
         mut path_iter: NibbleIterator<I>,
         value: V,

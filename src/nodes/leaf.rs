@@ -6,7 +6,6 @@ use crate::{
     TreePath,
 };
 use digest::{Digest, Output};
-use generic_array::ArrayLength;
 use slab::Slab;
 use smallvec::SmallVec;
 use std::{marker::PhantomData, mem::replace};
@@ -15,7 +14,6 @@ pub struct LeafNode<V, H>
 where
     V: TreePath,
     H: Digest,
-    <H::OutputSize as ArrayLength<u8>>::ArrayType: std::convert::From<Output<H>>,
 {
     value_ref: usize,
     // hash: Option<<H::OutputSize as ArrayLength<u8>>::ArrayType>,
@@ -30,7 +28,6 @@ impl<V, H> LeafNode<V, H>
 where
     V: TreePath,
     H: Digest,
-    <H::OutputSize as ArrayLength<u8>>::ArrayType: std::convert::From<Output<H>>,
 {
     pub fn new(path_len: usize, value_ref: usize) -> Self {
         Self {
@@ -44,7 +41,7 @@ where
     pub fn get<'a, I>(
         &self,
         _nodes: &Slab<Node<V, H>>,
-        values: &'a Slab<(<H::OutputSize as ArrayLength<u8>>::ArrayType, V)>,
+        values: &'a Slab<(Output<H>, V)>,
         full_path: &V::Path,
         _path_iter: NibbleIterator<I>,
     ) -> Option<&'a V>
@@ -67,7 +64,7 @@ where
     pub fn insert<I>(
         self,
         nodes: &mut Slab<Node<V, H>>,
-        values: &mut Slab<(<H::OutputSize as ArrayLength<u8>>::ArrayType, V)>,
+        values: &mut Slab<(Output<H>, V)>,
         full_path: &V::Path,
         mut path_iter: NibbleIterator<I>,
         new_value: V,

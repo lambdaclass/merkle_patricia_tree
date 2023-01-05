@@ -8,7 +8,6 @@ use self::node::Node;
 pub use self::path::TreePath;
 use crate::{nodes::LeafNode, util::build_value};
 use digest::{Digest, Output};
-use generic_array::ArrayLength;
 use nibble::NibbleIterator;
 use slab::Slab;
 use std::{cell::RefCell, io::Cursor, ops::DerefMut};
@@ -32,7 +31,6 @@ pub struct PatriciaMerkleTree<V, H>
 where
     V: TreePath,
     H: Digest,
-    <H::OutputSize as ArrayLength<u8>>::ArrayType: std::convert::From<Output<H>>,
 {
     /// Reference to the root node.
     root_ref: usize,
@@ -40,7 +38,7 @@ where
     /// Contains all the nodes.
     nodes: Slab<Node<V, H>>,
     /// Stores the actual nodes' hashed paths and values.
-    values: Slab<(<H::OutputSize as ArrayLength<u8>>::ArrayType, V)>,
+    values: Slab<(Output<H>, V)>,
 
     /// Used (and reused) internally to avoid allocating memory every time a buffer is needed.
     buffer: RefCell<Vec<u8>>,
@@ -50,7 +48,6 @@ impl<V, H> PatriciaMerkleTree<V, H>
 where
     V: TreePath,
     H: Digest,
-    <H::OutputSize as ArrayLength<u8>>::ArrayType: std::convert::From<Output<H>>,
 {
     pub fn new() -> Self {
         Self {
@@ -76,7 +73,7 @@ where
 
             // Encode the path into the buffer.
             buffer.clear();
-            V::encode_path(path, Cursor::new(buffer.deref_mut()));
+            V::encode_path(path, Cursor::new(buffer.deref_mut())).unwrap();
 
             // Call the root node's getter logic.
             let path_iter = NibbleIterator::new(buffer.iter().copied());
@@ -94,7 +91,7 @@ where
                 let path = value.path();
 
                 buffer.clear();
-                V::encode_path(&path, Cursor::new(buffer as &mut Vec<u8>));
+                V::encode_path(&path, Cursor::new(buffer as &mut Vec<u8>)).unwrap();
 
                 let path_iter = NibbleIterator::new(buffer.iter().copied());
                 let (root_node, old_value) =
@@ -117,7 +114,7 @@ where
         }
     }
 
-    pub fn remove(&mut self, path: &V::Path) -> Option<V> {
+    pub fn remove(&mut self, _path: &V::Path) -> Option<V> {
         todo!()
     }
 

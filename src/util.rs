@@ -1,16 +1,11 @@
 use crate::TreePath;
 use digest::{Digest, Output};
-use generic_array::ArrayLength;
 use std::io::{Cursor, Write};
 
-pub fn build_value<V, H>(
-    value: V,
-    target_len: Option<&mut usize>,
-) -> (<H::OutputSize as ArrayLength<u8>>::ArrayType, V)
+pub fn build_value<V, H>(value: V, target_len: Option<&mut usize>) -> (Output<H>, V)
 where
     V: TreePath,
     H: Digest,
-    <H::OutputSize as ArrayLength<u8>>::ArrayType: From<Output<H>>,
 {
     let mut digest_buf = DigestBuf::<H>::new();
 
@@ -46,10 +41,10 @@ where
     }
 
     // TODO: To check: https://github.com/fizyk20/generic-array/issues/132
-    pub fn finalize(mut self) -> (<H::OutputSize as ArrayLength<u8>>::ArrayType, usize) {
+    pub fn finalize(mut self) -> (Output<H>, usize) {
         // The .unwrap() next line is infallible (see flush implementation).
         self.flush().unwrap();
-        (self.hasher.finalize().into(), self.len)
+        (self.hasher.finalize(), self.len)
     }
 }
 
@@ -79,35 +74,5 @@ where
         self.buffer.set_position(0);
 
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use digest::OutputSizeUser;
-    use sha3::Keccak256;
-    use std::{any::type_name, io};
-
-    struct MyNode(String);
-
-    impl TreePath for MyNode {
-        type Path = String;
-
-        fn path(&self) -> Self::Path {
-            self.0.clone()
-        }
-
-        fn encode_path(path: &Self::Path, mut target: impl std::io::Write) -> io::Result<()> {
-            target.write_all(path.as_bytes())
-        }
-    }
-
-    #[test]
-    fn digest_buf_new() {
-        DigestBuf::<Keccak256>::new();
-
-        type A = <<Keccak256 as OutputSizeUser>::OutputSize as ArrayLength<u8>>::ArrayType;
-        println!("{}", type_name::<A>());
     }
 }
