@@ -1,18 +1,17 @@
 use super::{BranchNode, LeafNode};
 use crate::{
-    nibble::{Nibble, NibbleIterator},
+    nibble::Nibble,
     node::Node,
-    util::build_value,
-    TreePath,
+    util::{build_value, Offseted},
+    NodesStorage, TreePath, ValuesStorage,
 };
-use digest::{Digest, Output};
-use slab::Slab;
+use digest::Digest;
 use smallvec::SmallVec;
-use std::marker::PhantomData;
+use std::{iter::Peekable, marker::PhantomData};
 
-pub struct ExtensionNode<V, H>
+pub struct ExtensionNode<P, V, H>
 where
-    V: TreePath,
+    P: TreePath,
     H: Digest,
 {
     prefix: SmallVec<[Nibble; 16]>,
@@ -20,12 +19,12 @@ where
     child_ref: usize,
 
     // TODO: Hash?
-    phantom: PhantomData<(V, H)>,
+    phantom: PhantomData<(P, V, H)>,
 }
 
-impl<V, H> ExtensionNode<V, H>
+impl<P, V, H> ExtensionNode<P, V, H>
 where
-    V: TreePath,
+    P: TreePath,
     H: Digest,
 {
     pub fn new(prefix: impl Into<SmallVec<[Nibble; 16]>>, child_ref: usize) -> Self {
@@ -38,26 +37,27 @@ where
 
     pub fn get<'a, I>(
         &self,
-        nodes: &'a Slab<Node<V, H>>,
-        values: &'a Slab<(Output<H>, V)>,
-        full_path: &V::Path,
-        mut path_iter: NibbleIterator<I>,
+        nodes: &'a NodesStorage<P, V, H>,
+        values: &'a ValuesStorage<P, V, H>,
+        mut path_iter: Offseted<Peekable<I>>,
     ) -> Option<&'a V>
     where
-        I: Iterator<Item = u8>,
+        I: Iterator<Item = Nibble>,
     {
+        // Count the number of matching prefix nibbles (prefix).
         let prefix_match_len = (&mut path_iter)
             .zip(self.prefix.iter().copied())
             .take_while(|(a, b)| a == b)
             .count();
 
         // If the entire prefix matches (matched len equals prefix len), call the child's get logic.
+        // Otherwise, there's no matching node.
         if prefix_match_len == self.prefix.len() {
             let child = nodes
                 .get(self.child_ref)
                 .expect("inconsistent internal tree structure");
 
-            child.get(nodes, values, full_path, path_iter)
+            child.get(nodes, values, path_iter)
         } else {
             None
         }
@@ -65,20 +65,24 @@ where
 
     pub fn insert<I>(
         mut self,
-        nodes: &mut Slab<Node<V, H>>,
-        values: &mut Slab<(Output<H>, V)>,
-        full_path: &V::Path,
-        mut path_iter: NibbleIterator<I>,
+        nodes: &mut NodesStorage<P, V, H>,
+        values: &mut ValuesStorage<P, V, H>,
+        mut path_iter: Offseted<Peekable<I>>,
+        path: P,
         value: V,
-    ) -> (Node<V, H>, Option<V>)
+    ) -> (Node<P, V, H>, Option<V>)
     where
-        I: Clone + Iterator<Item = u8>,
+        I: Iterator<Item = Nibble>,
     {
-        let prefix_match_len = path_iter
-            .clone()
-            .zip(self.prefix.iter().copied())
-            .take_while(|(a, b)| a == b)
-            .count();
+        // Count the number of matching prefix nibbles (prefix) and check if the .
+        let (prefix_match_len, prefix_fits) = {
+            let prefix_match_len = (&mut path_iter)
+                .zip(self.prefix.iter().copied())
+                .take_while(|(a, b)| a == b)
+                .count();
+
+            (prefix_match_len, path_iter.next().is_none())
+        };
 
         // If the entire prefix matches (matched len equals prefix len), call the child's insertion
         // logic.
@@ -87,7 +91,7 @@ where
                 .try_remove(self.child_ref)
                 .expect("inconsistent internal tree structure");
 
-            let (child, old_value) = child.insert(nodes, values, full_path, path_iter, value);
+            let (child, old_value) = child.insert(nodes, values, path_iter, path, value);
             self.child_ref = nodes.insert(child);
 
             (self.into(), old_value)
@@ -95,20 +99,21 @@ where
             // If the new value's path is contained within the prefix, split the prefix with a
             // leaf-extension node, followed by an extension. Otherwise, insert a branch node or
             // an extension followed by a branch as needed.
-            if path_iter.is_done() {
+            if prefix_fits {
                 // Collect the new prefix.
-                // Insert itself since it'll be a child now.
                 let prefix: SmallVec<[Nibble; 16]> = path_iter.collect();
+
+                // Update self's prefix and insert itself (will be a child now).
+                self.prefix = self.prefix.into_iter().skip(prefix.len()).collect();
                 let child_ref = nodes.insert(self.into());
 
                 // Insert the value for the new node.
-                let mut path_len = 0;
-                let value_ref = values.insert(build_value::<V, H>(value, Some(&mut path_len)));
+                let value_ref = values.insert(build_value::<P, V, H>(path, value));
 
                 (
                     (
                         ExtensionNode::new(prefix, child_ref),
-                        LeafNode::new(path_len, value_ref),
+                        LeafNode::new(value_ref),
                     )
                         .into(),
                     None,
@@ -122,9 +127,8 @@ where
 
                 // Create and insert new node.
                 let index = path_iter.next().unwrap() as u8 as usize;
-                let mut path_len = 0;
-                let value_ref = values.insert(build_value::<V, H>(value, Some(&mut path_len)));
-                choices[index] = Some(nodes.insert(LeafNode::new(path_len, value_ref).into()));
+                let value_ref = values.insert(build_value::<P, V, H>(path, value));
+                choices[index] = Some(nodes.insert(LeafNode::new(value_ref).into()));
 
                 (BranchNode::new(choices).into(), None)
             } else {
@@ -143,9 +147,8 @@ where
 
                     // Create and insert new node.
                     let index = path_iter.next().unwrap() as u8 as usize;
-                    let mut path_len = 0;
-                    let value_ref = values.insert(build_value::<V, H>(value, Some(&mut path_len)));
-                    choices[index] = Some(nodes.insert(LeafNode::new(path_len, value_ref).into()));
+                    let value_ref = values.insert(build_value::<P, V, H>(path, value));
+                    choices[index] = Some(nodes.insert(LeafNode::new(value_ref).into()));
 
                     nodes.insert(BranchNode::new(choices).into())
                 };
@@ -159,27 +162,29 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::nibble::NibbleIterator;
     use sha3::Keccak256;
-    use std::io;
+    use slab::Slab;
+    use std::{io, str::Bytes};
 
     #[derive(Clone, Debug, Eq, PartialEq)]
-    struct MyNode(String);
+    struct MyNodePath(String);
 
-    impl TreePath for MyNode {
-        type Path = String;
+    impl TreePath for MyNodePath {
+        type Iterator<'a> = NibbleIterator<Bytes<'a>>;
 
-        fn path(&self) -> Self::Path {
-            self.0.clone()
+        fn encode(&self, mut target: impl io::Write) -> io::Result<()> {
+            target.write_all(self.0.as_bytes())
         }
 
-        fn encode_path(path: &Self::Path, mut target: impl io::Write) -> io::Result<()> {
-            target.write_all(path.as_bytes())
+        fn encoded_iter(&self) -> Self::Iterator<'_> {
+            NibbleIterator::new(self.0.bytes())
         }
     }
 
     #[test]
     fn new() {
-        let node = ExtensionNode::<MyNode, Keccak256>::new(
+        let node = ExtensionNode::<MyNodePath, i32, Keccak256>::new(
             [Nibble::V0, Nibble::V1, Nibble::V2].as_slice(),
             12,
         );
@@ -188,29 +193,23 @@ mod test {
             node.prefix.as_slice(),
             [Nibble::V0, Nibble::V1, Nibble::V2].as_slice(),
         );
+        assert_eq!(node.child_ref, 12);
     }
 
     #[test]
     fn get_some() {
         let mut nodes = Slab::new();
-        let mut values = Slab::<(Output<Keccak256>, MyNode)>::new();
+        let mut values = Slab::new();
 
-        let node_value = MyNode("hello world".to_string());
-        let node_path = node_value.path();
+        let path = MyNodePath("hello world".to_string());
+        let value = 42;
 
-        let mut path_len = 0;
-        let value_ref = values.insert(build_value::<_, Keccak256>(
-            node_value.clone(),
-            Some(&mut path_len),
-        ));
-        let child_node = LeafNode::<MyNode, Keccak256>::new(path_len, value_ref);
+        let value_ref = values.insert(build_value::<_, _, Keccak256>(path.clone(), value));
+        let child_node = LeafNode::<MyNodePath, i32, Keccak256>::new(value_ref);
         let child_ref = nodes.insert(child_node.into());
 
-        let node = ExtensionNode::<_, Keccak256>::new(
-            [NibbleIterator::new(node_path.as_bytes().iter().copied())
-                .next()
-                .unwrap()]
-            .as_slice(),
+        let node = ExtensionNode::<_, _, Keccak256>::new(
+            [path.encoded_iter().next().unwrap()].as_slice(),
             child_ref,
         );
 
@@ -218,41 +217,35 @@ mod test {
             node.get(
                 &nodes,
                 &values,
-                &node_path,
-                NibbleIterator::new(node_path.as_bytes().iter().copied())
+                Offseted::new(path.encoded_iter().peekable()),
             ),
-            Some(&node_value),
+            Some(&value),
         );
     }
 
     #[test]
     fn get_none() {
         let mut nodes = Slab::new();
-        let mut values = Slab::<(Output<Keccak256>, MyNode)>::new();
+        let mut values = Slab::new();
 
-        let node_value = MyNode("hello world".to_string());
-        let node_path = node_value.path();
+        let path = MyNodePath("hello world".to_string());
+        let value = 42;
 
-        let mut path_len = 0;
-        let value_ref = values.insert(build_value::<_, Keccak256>(node_value, Some(&mut path_len)));
-        let child_node = LeafNode::<MyNode, Keccak256>::new(path_len, value_ref);
+        let value_ref = values.insert(build_value::<_, _, Keccak256>(path.clone(), value));
+        let child_node = LeafNode::<MyNodePath, i32, Keccak256>::new(value_ref);
         let child_ref = nodes.insert(child_node.into());
 
-        let node = ExtensionNode::<_, Keccak256>::new(
-            [NibbleIterator::new(node_path.as_bytes().iter().copied())
-                .next()
-                .unwrap()]
-            .as_slice(),
+        let node = ExtensionNode::<_, _, Keccak256>::new(
+            [path.encoded_iter().next().unwrap()].as_slice(),
             child_ref,
         );
 
-        let node_path = "invalid node".to_string();
+        let path = MyNodePath("invalid node".to_string());
         assert_eq!(
             node.get(
                 &nodes,
                 &values,
-                &node_path,
-                NibbleIterator::new(node_path.as_bytes().iter().copied())
+                Offseted::new(path.encoded_iter().peekable()),
             ),
             None,
         );
@@ -262,27 +255,18 @@ mod test {
     #[should_panic]
     fn get_iits() {
         let nodes = Slab::new();
-        let values = Slab::<(Output<Keccak256>, MyNode)>::new();
+        let values = Slab::new();
 
-        let node_value = MyNode("hello world".to_string());
-        let node_path = node_value.path();
-
-        let node = ExtensionNode::<_, Keccak256>::new(
-            [NibbleIterator::new(node_path.as_bytes().iter().copied())
-                .next()
-                .unwrap()]
-            .as_slice(),
+        let path = MyNodePath("hello world".to_string());
+        let node = ExtensionNode::<MyNodePath, (), Keccak256>::new(
+            [path.encoded_iter().next().unwrap()].as_slice(),
             1234,
         );
 
-        assert_eq!(
-            node.get(
-                &nodes,
-                &values,
-                &node_path,
-                NibbleIterator::new(node_path.as_bytes().iter().copied())
-            ),
-            Some(&node_value),
+        node.get(
+            &nodes,
+            &values,
+            Offseted::new(path.encoded_iter().peekable()),
         );
     }
 }

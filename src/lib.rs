@@ -5,18 +5,20 @@
 //!   -
 
 use self::node::Node;
-pub use self::path::TreePath;
+pub use self::{path::TreePath, nibble::{Nibble, NibbleIterator}};
 use crate::{nodes::LeafNode, util::build_value};
 use digest::{Digest, Output};
-use nibble::NibbleIterator;
 use slab::Slab;
-use std::{cell::RefCell, io::Cursor, ops::DerefMut};
+use util::Offseted;
 
 mod nibble;
 mod node;
 mod nodes;
 mod path;
 mod util;
+
+type NodesStorage<P, V, H> = Slab<Node<P, V, H>>;
+type ValuesStorage<P, V, H> = Slab<(P, Output<H>, V)>;
 
 /// Patricia Merkle Tree implementation.
 ///
@@ -27,26 +29,23 @@ mod util;
 ///   - The path may have to be preprocessed (rlp encoding, for example).
 /// By using a trait like `TreePath`, all this complexity can be easily implemented.
 #[derive(Default)]
-pub struct PatriciaMerkleTree<V, H>
+pub struct PatriciaMerkleTree<P, V, H>
 where
-    V: TreePath,
+    P: TreePath,
     H: Digest,
 {
     /// Reference to the root node.
     root_ref: usize,
 
     /// Contains all the nodes.
-    nodes: Slab<Node<V, H>>,
+    nodes: NodesStorage<P, V, H>,
     /// Stores the actual nodes' hashed paths and values.
-    values: Slab<(Output<H>, V)>,
-
-    /// Used (and reused) internally to avoid allocating memory every time a buffer is needed.
-    buffer: RefCell<Vec<u8>>,
+    values: ValuesStorage<P, V, H>,
 }
 
-impl<V, H> PatriciaMerkleTree<V, H>
+impl<P, V, H> PatriciaMerkleTree<P, V, H>
 where
-    V: TreePath,
+    P: TreePath,
     H: Digest,
 {
     pub fn new() -> Self {
@@ -54,7 +53,6 @@ where
             root_ref: 0,
             nodes: Slab::new(),
             values: Slab::new(),
-            buffer: RefCell::new(Vec::new()),
         }
     }
 
@@ -67,46 +65,32 @@ where
     }
 
     /// Retrieves a value from the tree given its path.
-    pub fn get(&self, path: &V::Path) -> Option<&V> {
+    pub fn get(&self, path: &P) -> Option<&V> {
         self.nodes.get(self.root_ref).and_then(|root_node| {
-            let mut buffer = self.buffer.borrow_mut();
-
-            // Encode the path into the buffer.
-            buffer.clear();
-            V::encode_path(path, Cursor::new(buffer.deref_mut())).unwrap();
-
-            // Call the root node's getter logic.
-            let path_iter = NibbleIterator::new(buffer.iter().copied());
-            root_node.get(&self.nodes, &self.values, path, path_iter)
+            let path_iter = Offseted::new(path.encoded_iter().peekable());
+            root_node.get(&self.nodes, &self.values, path_iter)
         })
     }
 
-    pub fn insert(&mut self, value: V) -> Option<V> {
-        // TODO: Maybe use a crate to get ownership (unsafely) from a ref?
-        //   Maybe Cell::update? (is experimental, Cell should be on Slab).
+    pub fn insert(&mut self, path: P, value: V) -> Option<V>
+    where
+        P: Clone,
+    {
         match self.nodes.try_remove(0) {
             Some(root_node) => {
                 // If the tree is not empty, call the root node's insertion logic.
-                let buffer = self.buffer.get_mut();
-                let path = value.path();
-
-                buffer.clear();
-                V::encode_path(&path, Cursor::new(buffer as &mut Vec<u8>)).unwrap();
-
-                let path_iter = NibbleIterator::new(buffer.iter().copied());
+                let path2 = path.clone();
+                let path_iter = Offseted::new(path2.encoded_iter().peekable());
                 let (root_node, old_value) =
-                    root_node.insert(&mut self.nodes, &mut self.values, &path, path_iter, value);
+                    root_node.insert(&mut self.nodes, &mut self.values, path_iter, path, value);
                 self.root_ref = self.nodes.insert(root_node);
 
                 old_value
             }
             None => {
                 // If the tree is empty, just add a leaf.
-                let mut path_len = 0;
-                let value_ref = self
-                    .values
-                    .insert(build_value::<V, H>(value, Some(&mut path_len)));
-                let node_ref = self.nodes.insert(LeafNode::new(path_len, value_ref).into());
+                let value_ref = self.values.insert(build_value::<P, V, H>(path, value));
+                let node_ref = self.nodes.insert(LeafNode::new(value_ref).into());
                 assert_eq!(node_ref, 0, "inconsistent internal tree structure");
 
                 None
@@ -114,13 +98,13 @@ where
         }
     }
 
-    pub fn remove(&mut self, _path: &V::Path) -> Option<V> {
-        todo!()
-    }
+    // pub fn remove(&mut self, _path: &V::Path) -> Option<V> {
+    //     todo!()
+    // }
 
-    // TODO: Iterators.
+    // // TODO: Iterators.
 
-    pub fn compute_hash(&self) -> Output<H> {
-        todo!()
-    }
+    // pub fn compute_hash(&self) -> Output<H> {
+    //     todo!()
+    // }
 }

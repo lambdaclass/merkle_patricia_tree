@@ -1,4 +1,4 @@
-use std::iter::{Enumerate, Peekable};
+use std::iter::Peekable;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Nibble {
@@ -52,12 +52,12 @@ impl From<Nibble> for u8 {
     }
 }
 
-#[derive(Clone)]
 pub struct NibbleIterator<I>
 where
     I: Iterator<Item = u8>,
 {
-    inner: Peekable<Enumerate<I>>,
+    inner: Peekable<I>,
+    count: usize,
     next: Option<Nibble>,
 }
 
@@ -67,7 +67,8 @@ where
 {
     pub fn new(inner: impl IntoIterator<Item = u8, IntoIter = I>) -> Self {
         Self {
-            inner: inner.into_iter().enumerate().peekable(),
+            inner: inner.into_iter().peekable(),
+            count: 0,
             next: None,
         }
     }
@@ -76,28 +77,20 @@ where
         self.next.is_none() && self.inner.peek().is_none()
     }
 
-    pub fn position(&mut self) -> Option<usize> {
-        self.inner.peek().map(|(inner_pos, _)| {
-            let mut inner_pos = *inner_pos * 2;
-            if self.next.is_some() {
-                inner_pos += 1;
-            }
+    pub fn cmp_rest<I2>(self, rhs: NibbleIterator<I2>) -> bool
+    where
+        I2: Iterator<Item = u8>,
+    {
+        if self.count != rhs.count {
+            return false;
+        }
 
-            inner_pos
-        })
+        if self.next != rhs.next {
+            return false;
+        }
+
+        self.inner.eq(rhs.inner)
     }
-
-    // pub fn advance_to(&mut self, position: usize) {
-    //     if let Some(current_pos) = self.position() {
-    //         // This should never fail. If it does, it's a bug.
-    //         assert!(position >= current_pos);
-
-    //         // Advance to the correct position.
-    //         if position > current_pos {
-    //             self.nth(position - current_pos - 1);
-    //         }
-    //     }
-    // }
 }
 
 impl<I> Iterator for NibbleIterator<I>
@@ -107,32 +100,38 @@ where
     type Item = Nibble;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.next.or_else(|| {
-            self.inner.next().map(|(_, value)| {
-                self.next = Some((value & 0x0F).try_into().unwrap());
-                (value >> 4).try_into().unwrap()
+        self.next
+            .take()
+            .or_else(|| {
+                self.inner.next().map(|value| {
+                    self.next = Some((value & 0x0F).try_into().unwrap());
+                    (value >> 4).try_into().unwrap()
+                })
             })
-        })
+            .map(|x| {
+                self.count += 1;
+                x
+            })
     }
 
-    // fn nth(&mut self, n: usize) -> Option<Self::Item> {
-    //     match n {
-    //         0 => self.next(),
-    //         mut n => {
-    //             if self.next.is_some() {
-    //                 self.next = None;
-    //                 n -= 1;
-    //             }
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        match n {
+            0 => self.next(),
+            mut n => {
+                if self.next.is_some() {
+                    self.next = None;
+                    n -= 1;
+                }
 
-    //             if n >= 2 {
-    //                 self.inner.nth(n >> 1);
-    //                 if n % 2 == 1 {
-    //                     self.next();
-    //                 }
-    //             }
+                if n >= 2 {
+                    self.inner.nth(n >> 1);
+                    if n % 2 == 1 {
+                        self.next();
+                    }
+                }
 
-    //             self.next()
-    //         }
-    //     }
-    // }
+                self.next()
+            }
+        }
+    }
 }

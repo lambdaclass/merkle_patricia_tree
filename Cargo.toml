@@ -3,6 +3,10 @@ name = "patricia-merkle-tree"
 version = "0.1.0"
 edition = "2021"
 
+[[bench]]
+name = "bench"
+harness = false
+
 [dependencies]
 digest = "0.10.6"
 generic-array = "0.14.6"
@@ -10,4 +14,6 @@ slab = "0.4.7"
 smallvec = "1.10.0"
 
 [dev-dependencies]
+criterion = "0.4.0"
+rand = "0.8.5"
 sha3 = "0.10.6"
