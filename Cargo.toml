@@ -1,6 +1,13 @@
 [package]
-name = "patricia-tree"
+name = "patricia-merkle-tree"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+digest = "0.10.6"
+generic-array = "0.14.6"
+slab = "0.4.7"
+smallvec = "1.10.0"
+
+[dev-dependencies]
+sha3 = "0.10.6"

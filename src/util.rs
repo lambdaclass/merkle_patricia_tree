@@ -1,128 +1,113 @@
-pub struct KeySegmentIterator<'a> {
-    data: &'a [u8; 32],
-    pos: usize,
-    half: bool,
+use crate::TreePath;
+use digest::{Digest, Output};
+use generic_array::ArrayLength;
+use std::io::{Cursor, Write};
+
+pub fn build_value<V, H>(
+    value: V,
+    target_len: Option<&mut usize>,
+) -> (<H::OutputSize as ArrayLength<u8>>::ArrayType, V)
+where
+    V: TreePath,
+    H: Digest,
+    <H::OutputSize as ArrayLength<u8>>::ArrayType: From<Output<H>>,
+{
+    let mut digest_buf = DigestBuf::<H>::new();
+
+    value.encode_self_path(&mut digest_buf).unwrap();
+    let (hashed_path, path_len) = digest_buf.finalize();
+
+    if let Some(target_len) = target_len {
+        *target_len = path_len;
+    }
+
+    (hashed_path, value)
 }
 
-impl<'a> KeySegmentIterator<'a> {
-    /// Create a new nibble iterator.
-    pub fn new(data: &'a [u8; 32]) -> Self {
+struct DigestBuf<H>
+where
+    H: Digest,
+{
+    hasher: H,
+    buffer: Cursor<[u8; 256]>,
+    len: usize,
+}
+
+impl<H> DigestBuf<H>
+where
+    H: Digest,
+{
+    pub fn new() -> Self {
         Self {
-            data,
-            pos: 0,
-            half: false,
+            hasher: H::new(),
+            buffer: Cursor::new([0u8; 256]),
+            len: 0,
         }
     }
 
-    /// Shortcut to the `nth()` method of a new iterator.
-    ///
-    /// Panics when n is out of the range [0, 64).
-    pub fn nth(data: &'a [u8; 32], n: usize) -> u8 {
-        KeySegmentIterator::new(data)
-            .nth(n)
-            .expect("Key index out of range, value should be in [0, 64).")
+    // TODO: To check: https://github.com/fizyk20/generic-array/issues/132
+    pub fn finalize(mut self) -> (<H::OutputSize as ArrayLength<u8>>::ArrayType, usize) {
+        // The .unwrap() next line is infallible (see flush implementation).
+        self.flush().unwrap();
+        (self.hasher.finalize().into(), self.len)
     }
 }
 
-impl<'a> Iterator for KeySegmentIterator<'a> {
-    type Item = u8;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.pos >= 32 {
-            return None;
+impl<H> Write for DigestBuf<H>
+where
+    H: Digest,
+{
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        let mut pos = 0;
+        while pos != buf.len() {
+            pos += self.buffer.write(&buf[pos..])?;
+            if self.buffer.position() as usize == self.buffer.get_ref().len() {
+                self.hasher.update(self.buffer.get_ref());
+                self.buffer.set_position(0);
+                self.len += self.buffer.get_ref().len();
+            }
         }
 
-        let mut value = self.data[self.pos];
+        todo!()
+    }
 
-        if self.half {
-            self.pos += 1;
-            value &= 0xF;
-        } else {
-            value >>= 4;
-        }
+    fn flush(&mut self) -> std::io::Result<()> {
+        let buffer = &self.buffer.get_ref()[..self.buffer.position() as usize];
 
-        self.half = !self.half;
-        Some(value)
+        self.hasher.update(buffer);
+        self.len += buffer.len();
+        self.buffer.set_position(0);
+
+        Ok(())
     }
 }
 
-/// Create a new Patricia tree key.
 #[cfg(test)]
-#[macro_export]
-macro_rules! pm_tree_key {
-    ( $key:literal ) => {{
-        assert_eq!($key.len(), 64, "Tree keys must be 64 nibbles in length.");
-        let key: [u8; 32] = $key
-            .as_bytes()
-            .chunks_exact(2)
-            .map(|x| {
-                u8::from_str_radix(std::str::from_utf8(x).unwrap(), 16)
-                    .expect("Key contains non-hexadecimal characters.")
-            })
-            .collect::<Vec<u8>>()
-            .try_into()
-            .unwrap();
+mod test {
+    use super::*;
+    use digest::OutputSizeUser;
+    use sha3::Keccak256;
+    use std::{any::type_name, io};
 
-        key
-    }};
-}
+    struct MyNode(String);
 
-/// Create a new Patricia Tree.
-#[cfg(test)]
-#[macro_export]
-macro_rules! pm_tree {
-    // Create an empty tree (with deduced value type).
-    () => {
-        $crate::PatriciaTree {
-            root_node: None,
+    impl TreePath for MyNode {
+        type Path = String;
+
+        fn path(&self) -> Self::Path {
+            self.0.clone()
         }
-    };
-    // Create an empty tree (with explicit value type).
-    ( < $t:ty > ) => {
-        $crate::PatriciaTree::<$t> {
-            root_node: None,
-        }
-    };
-    // Create a new tree.
-    ( $type:ident { $( $root_node:tt )* } ) => {
-        $crate::PatriciaTree {
-            root_node: Some($crate::pm_tree_branch!($type { $( $root_node )* }).into()),
-        }
-    };
-}
 
-#[cfg(test)]
-#[macro_export]
-macro_rules! pm_tree_branch {
-    // Internal.
-    ( branch { $( $key:literal => $type:ident { $( $node:tt )* } ),* $(,)? } ) => {
-        $crate::node::BranchNode::from_choices({
-            let mut choices: [Option<Box<Node<_>>>; 16] = Default::default();
-            $( choices[$key] = Some(Box::new($crate::pm_tree_branch!($type { $( $node )* }).into())); )*
-            choices
-        })
-    };
-    // Internal.
-    ( extension { $prefix:literal, $type:ident { $( $node:tt )* } } ) => {
-        $crate::node::ExtensionNode::from_prefix_child(
-            {
-                let value = $prefix
-                    .as_bytes()
-                    .into_iter()
-                    .map(|x| {
-                        (*x as char)
-                            .to_digit(16)
-                            .expect("Prefix contains non-hexadecimal characters.") as u8
-                    })
-                    .collect::<Vec<u8>>();
+        fn encode_path(path: &Self::Path, mut target: impl std::io::Write) -> io::Result<()> {
+            target.write_all(path.as_bytes())
+        }
+    }
 
-                value
-            },
-            $crate::pm_tree_branch!($type { $( $node )* }).into(),
-        )
-    };
-    // Internal.
-    ( leaf { $key:expr => $value:expr } ) => {
-        $crate::node::LeafNode::from_key_value($key, $value)
-    };
+    #[test]
+    fn digest_buf_new() {
+        DigestBuf::<Keccak256>::new();
+
+        type A = <<Keccak256 as OutputSizeUser>::OutputSize as ArrayLength<u8>>::ArrayType;
+        println!("{}", type_name::<A>());
+    }
 }
