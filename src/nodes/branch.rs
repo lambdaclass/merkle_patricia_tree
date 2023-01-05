@@ -96,3 +96,75 @@ where
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use sha3::Keccak256;
+    use std::io;
+
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    struct MyNode(String);
+
+    impl TreePath for MyNode {
+        type Path = String;
+
+        fn path(&self) -> Self::Path {
+            self.0.clone()
+        }
+
+        fn encode_path(path: &Self::Path, mut target: impl std::io::Write) -> io::Result<()> {
+            target.write_all(path.as_bytes())
+        }
+    }
+
+    #[test]
+    fn new() {
+        let node = BranchNode::<MyNode, Keccak256>::new({
+            let mut choices = [None; 16];
+
+            choices[2] = Some(2);
+            choices[5] = Some(5);
+
+            choices
+        });
+
+        assert_eq!(
+            node.choices,
+            [
+                None,
+                None,
+                Some(2),
+                None,
+                None,
+                Some(5),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            ],
+        );
+    }
+
+    #[test]
+    fn get_some() {
+        todo!()
+    }
+
+    #[test]
+    fn get_none() {
+        todo!()
+    }
+
+    #[test]
+    #[should_panic]
+    fn get_iits() {
+        todo!()
+    }
+}

@@ -140,7 +140,10 @@ mod test {
         let node_path = node_value.path();
 
         let mut path_len = 0;
-        let value_ref = values.insert(build_value::<_, Keccak256>(node_value.clone(), Some(&mut path_len)));
+        let value_ref = values.insert(build_value::<_, Keccak256>(
+            node_value.clone(),
+            Some(&mut path_len),
+        ));
         let node = LeafNode::<_, Keccak256>::new(0, value_ref);
 
         assert_eq!(
@@ -162,7 +165,7 @@ mod test {
         let node_value = MyNode("hello world".to_string());
 
         let mut path_len = 0;
-        let value_ref = values.insert(build_value::<_, Keccak256>(node_value.clone(), Some(&mut path_len)));
+        let value_ref = values.insert(build_value::<_, Keccak256>(node_value, Some(&mut path_len)));
         let node = LeafNode::<_, Keccak256>::new(0, value_ref);
 
         let node_path = "invalid node".to_string();
