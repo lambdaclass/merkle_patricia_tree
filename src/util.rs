@@ -63,7 +63,7 @@ where
             }
         }
 
-        todo!()
+        Ok(pos)
     }
 
     fn flush(&mut self) -> std::io::Result<()> {

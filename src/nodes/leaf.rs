@@ -102,40 +102,100 @@ where
     }
 }
 
-// #[cfg(test)]
-// mod test {
-//     use super::*;
-//     use sha3::Keccak256;
-//     use std::io;
+#[cfg(test)]
+mod test {
+    use super::*;
+    use sha3::Keccak256;
+    use std::io;
 
-//     struct MyNode(String);
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    struct MyNode(String);
 
-//     impl TreePath for MyNode {
-//         type Path = String;
+    impl TreePath for MyNode {
+        type Path = String;
 
-//         fn path(&self) -> Self::Path {
-//             self.0.clone()
-//         }
+        fn path(&self) -> Self::Path {
+            self.0.clone()
+        }
 
-//         fn encode_path(path: &Self::Path, target: impl std::io::Write) -> io::Result<()> {
-//             target.write_all(path.as_bytes())
-//         }
-//     }
+        fn encode_path(path: &Self::Path, mut target: impl std::io::Write) -> io::Result<()> {
+            target.write_all(path.as_bytes())
+        }
+    }
 
-//     #[test]
-//     fn new() {
-//         let node = LeafNode::<MyNode, Keccak256>::new(12, 34);
+    #[test]
+    fn new() {
+        let node = LeafNode::<MyNode, Keccak256>::new(12, 34);
 
-//         assert_eq!(node.path_len, 12);
-//         assert_eq!(node.value_ref, 34);
-//     }
+        assert_eq!(node.path_len, 12);
+        assert_eq!(node.value_ref, 34);
+    }
 
-//     #[test]
-//     fn test() {
-//         let hasher = Keccak256::new();
-//         hasher.update(b"asdf");
+    #[test]
+    fn get_some() {
+        let nodes = Slab::new();
+        let mut values = Slab::<(Output<Keccak256>, _)>::new();
 
-//         let mut hash = [0u8; 32];
-//         Digest::finalize_into(hasher, (&mut hash).into());
-//     }
-// }
+        let node_value = MyNode("hello world".to_string());
+        let node_path = node_value.path();
+
+        let mut path_len = 0;
+        let value_ref = values.insert(build_value::<_, Keccak256>(node_value.clone(), Some(&mut path_len)));
+        let node = LeafNode::<_, Keccak256>::new(0, value_ref);
+
+        assert_eq!(
+            node.get(
+                &nodes,
+                &values,
+                &node_path,
+                NibbleIterator::new(node_path.as_bytes().iter().copied())
+            ),
+            Some(&node_value),
+        );
+    }
+
+    #[test]
+    fn get_none() {
+        let nodes = Slab::new();
+        let mut values = Slab::<(Output<Keccak256>, _)>::new();
+
+        let node_value = MyNode("hello world".to_string());
+
+        let mut path_len = 0;
+        let value_ref = values.insert(build_value::<_, Keccak256>(node_value.clone(), Some(&mut path_len)));
+        let node = LeafNode::<_, Keccak256>::new(0, value_ref);
+
+        let node_path = "invalid node".to_string();
+        assert_eq!(
+            node.get(
+                &nodes,
+                &values,
+                &node_path,
+                NibbleIterator::new(node_path.as_bytes().iter().copied())
+            ),
+            None,
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn get_iits() {
+        let nodes = Slab::new();
+        let values = Slab::<(Output<Keccak256>, _)>::new();
+
+        let node_value = MyNode("hello world".to_string());
+        let node_path = node_value.path();
+
+        let node = LeafNode::<_, Keccak256>::new(0, 0);
+
+        assert_eq!(
+            node.get(
+                &nodes,
+                &values,
+                &node_path,
+                NibbleIterator::new(node_path.as_bytes().iter().copied())
+            ),
+            Some(&node_value),
+        );
+    }
+}
