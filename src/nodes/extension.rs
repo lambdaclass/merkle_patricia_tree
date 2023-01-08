@@ -1,13 +1,13 @@
 use super::{BranchNode, LeafNode};
 use crate::{
     nibble::Nibble,
-    node::Node,
-    util::{build_value, Offseted},
+    node::{InsertAction, Node},
+    util::Offseted,
     NodesStorage, TreePath, ValuesStorage,
 };
 use digest::Digest;
 use smallvec::SmallVec;
-use std::{iter::Peekable, marker::PhantomData};
+use std::marker::PhantomData;
 
 #[derive(Clone, Debug)]
 pub struct ExtensionNode<P, V, H>
@@ -40,16 +40,13 @@ where
         &self,
         nodes: &'a NodesStorage<P, V, H>,
         values: &'a ValuesStorage<P, V, H>,
-        mut path_iter: Offseted<Peekable<I>>,
+        mut path_iter: Offseted<I>,
     ) -> Option<&'a V>
     where
         I: Iterator<Item = Nibble>,
     {
         // Count the number of matching prefix nibbles (prefix).
-        let prefix_match_len = (&mut path_iter)
-            .zip(self.prefix.iter().copied())
-            .take_while(|(a, b)| a == b)
-            .count();
+        let prefix_match_len = path_iter.count_equals(&mut self.prefix.iter().copied().peekable());
 
         // If the entire prefix matches (matched len equals prefix len), call the child's get logic.
         // Otherwise, there's no matching node.
@@ -68,19 +65,15 @@ where
         mut self,
         nodes: &mut NodesStorage<P, V, H>,
         values: &mut ValuesStorage<P, V, H>,
-        mut path_iter: Offseted<Peekable<I>>,
-        path: P,
-        value: V,
-    ) -> (Node<P, V, H>, Option<V>)
+        mut path_iter: Offseted<I>,
+    ) -> (Node<P, V, H>, InsertAction)
     where
         I: Iterator<Item = Nibble>,
     {
         // Count the number of matching prefix nibbles (prefix) and check if the .
         let (prefix_match_len, prefix_fits) = {
-            let prefix_match_len = (&mut path_iter)
-                .zip(self.prefix.iter().copied())
-                .take_while(|(a, b)| a == b)
-                .count();
+            let prefix_match_len =
+                path_iter.count_equals(&mut self.prefix.iter().copied().peekable());
 
             (prefix_match_len, path_iter.next().is_none())
         };
@@ -92,10 +85,11 @@ where
                 .try_remove(self.child_ref)
                 .expect("inconsistent internal tree structure");
 
-            let (child, old_value) = child.insert(nodes, values, path_iter, path, value);
+            let (child, insert_action) = child.insert(nodes, values, path_iter);
             self.child_ref = nodes.insert(child);
 
-            (self.into(), old_value)
+            let insert_action = insert_action.quantize_self(self.child_ref);
+            (self.into(), insert_action)
         } else {
             // If the new value's path is contained within the prefix, split the prefix with a
             // leaf-extension node, followed by an extension. Otherwise, insert a branch node or
@@ -108,16 +102,15 @@ where
                 self.prefix = self.prefix.into_iter().skip(prefix.len()).collect();
                 let child_ref = nodes.insert(self.into());
 
-                // Insert the value for the new node.
-                let value_ref = values.insert(build_value::<P, V, H>(path, value));
-
+                // The value will be inserted later on.
+                // Note: The tree will be left inconsistent, but will be fixed later on.
                 (
                     (
                         ExtensionNode::new(prefix, child_ref),
-                        LeafNode::new(value_ref),
+                        LeafNode::new(values.vacant_key()),
                     )
                         .into(),
-                    None,
+                    InsertAction::Insert(child_ref),
                 )
             } else if prefix_match_len == 0 {
                 let mut choices = [None; 16];
@@ -128,10 +121,13 @@ where
 
                 // Create and insert new node.
                 let index = path_iter.next().unwrap() as u8 as usize;
-                let value_ref = values.insert(build_value::<P, V, H>(path, value));
-                choices[index] = Some(nodes.insert(LeafNode::new(value_ref).into()));
+                let child_ref = nodes.insert(LeafNode::new(values.vacant_key()).into());
+                choices[index] = Some(child_ref);
 
-                (BranchNode::new(choices).into(), None)
+                (
+                    BranchNode::new(choices).into(),
+                    InsertAction::Insert(child_ref),
+                )
             } else {
                 // Extract the common prefix.
                 let prefix: SmallVec<[Nibble; 16]> =
@@ -148,13 +144,16 @@ where
 
                     // Create and insert new node.
                     let index = path_iter.next().unwrap() as u8 as usize;
-                    let value_ref = values.insert(build_value::<P, V, H>(path, value));
-                    choices[index] = Some(nodes.insert(LeafNode::new(value_ref).into()));
+                    let child_ref = nodes.insert(LeafNode::new(values.vacant_key()).into());
+                    choices[index] = Some(child_ref);
 
                     nodes.insert(BranchNode::new(choices).into())
                 };
 
-                (ExtensionNode::new(prefix, child_ref).into(), None)
+                (
+                    ExtensionNode::new(prefix, child_ref).into(),
+                    InsertAction::Insert(child_ref),
+                )
             }
         }
     }
@@ -163,7 +162,7 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::nibble::NibbleIterator;
+    use crate::{nibble::NibbleIterator, util::build_value};
     use sha3::Keccak256;
     use slab::Slab;
     use std::{io, str::Bytes};
@@ -202,7 +201,7 @@ mod test {
         let mut nodes = Slab::new();
         let mut values = Slab::new();
 
-        let path = MyNodePath("hello world".to_string());
+        let path = MyNodePath("\x01\x23\x45\x67".to_string());
         let value = 42;
 
         let value_ref = values.insert(build_value::<_, _, Keccak256>(path.clone(), value));
@@ -215,11 +214,7 @@ mod test {
         );
 
         assert_eq!(
-            node.get(
-                &nodes,
-                &values,
-                Offseted::new(path.encoded_iter().peekable()),
-            ),
+            node.get(&nodes, &values, Offseted::new(path.encoded_iter()),),
             Some(&value),
         );
     }

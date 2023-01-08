@@ -5,10 +5,15 @@
 //!   -
 
 use self::node::Node;
-pub use self::{path::TreePath, nibble::{Nibble, NibbleIterator}};
+pub use self::{
+    nibble::{Nibble, NibbleIterator},
+    path::TreePath,
+};
 use crate::{nodes::LeafNode, util::build_value};
 use digest::{Digest, Output};
+use node::InsertAction;
 use slab::Slab;
+use std::mem::{replace, size_of};
 use util::Offseted;
 
 mod nibble;
@@ -67,7 +72,7 @@ where
     /// Retrieves a value from the tree given its path.
     pub fn get(&self, path: &P) -> Option<&V> {
         self.nodes.get(self.root_ref).and_then(|root_node| {
-            let path_iter = Offseted::new(path.encoded_iter().peekable());
+            let path_iter = Offseted::new(path.encoded_iter());
             root_node.get(&self.nodes, &self.values, path_iter)
         })
     }
@@ -79,13 +84,39 @@ where
         match self.nodes.try_remove(0) {
             Some(root_node) => {
                 // If the tree is not empty, call the root node's insertion logic.
-                let path2 = path.clone();
-                let path_iter = Offseted::new(path2.encoded_iter().peekable());
-                let (root_node, old_value) =
-                    root_node.insert(&mut self.nodes, &mut self.values, path_iter, path, value);
+                let path_iter = Offseted::new(path.encoded_iter());
+                let (root_node, insert_action) =
+                    root_node.insert(&mut self.nodes, &mut self.values, path_iter);
                 self.root_ref = self.nodes.insert(root_node);
 
-                old_value
+                match insert_action.quantize_self(self.root_ref) {
+                    InsertAction::Insert(node_ref) => {
+                        let value_ref = self.values.insert(build_value::<P, V, H>(path, value));
+                        match self
+                            .nodes
+                            .get_mut(node_ref)
+                            .expect("inconsistent internal tree structure")
+                        {
+                            Node::Leaf(leaf_node)
+                            | Node::LeafBranch(_, leaf_node)
+                            | Node::LeafExtension(_, leaf_node) => {
+                                leaf_node.update_value_ref(value_ref);
+                            }
+                            _ => panic!("inconsistent_internal_tree_structure"),
+                        };
+
+                        None
+                    }
+                    InsertAction::Replace(value_ref) => {
+                        let (_, _, old_value) = self
+                            .values
+                            .get_mut(value_ref)
+                            .expect("inconsistent internal tree structure");
+
+                        Some(replace(old_value, value))
+                    }
+                    _ => None,
+                }
             }
             None => {
                 // If the tree is empty, just add a leaf.
@@ -107,4 +138,14 @@ where
     // pub fn compute_hash(&self) -> Output<H> {
     //     todo!()
     // }
+
+    /// Calculate approximated memory usage (both used and allocated).
+    pub fn memory_usage(&self) -> (usize, usize) {
+        let mem_consumed = size_of::<Node<P, V, H>>() * self.nodes.len()
+            + size_of::<(P, Output<H>, V)>() * self.values.len();
+        let mem_reserved = size_of::<Node<P, V, H>>() * self.nodes.capacity()
+            + size_of::<(P, Output<H>, V)>() * self.values.capacity();
+
+        (mem_consumed, mem_reserved)
+    }
 }

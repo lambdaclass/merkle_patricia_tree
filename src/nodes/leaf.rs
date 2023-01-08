@@ -1,13 +1,13 @@
 use super::ExtensionNode;
 use crate::{
     nibble::Nibble,
-    node::Node,
-    util::{build_value, Offseted},
+    node::{InsertAction, Node},
+    util::Offseted,
     NodesStorage, TreePath, ValuesStorage,
 };
 use digest::Digest;
 use smallvec::SmallVec;
-use std::{iter::Peekable, marker::PhantomData, mem::replace};
+use std::marker::PhantomData;
 
 #[derive(Clone, Debug)]
 pub struct LeafNode<P, V, H>
@@ -33,11 +33,15 @@ where
         }
     }
 
+    pub fn update_value_ref(&mut self, new_value_ref: usize) {
+        self.value_ref = new_value_ref;
+    }
+
     pub fn get<'a, I>(
         &self,
         _nodes: &NodesStorage<P, V, H>,
         values: &'a ValuesStorage<P, V, H>,
-        path_iter: Offseted<Peekable<I>>,
+        path_iter: Offseted<I>,
     ) -> Option<&'a V>
     where
         I: Iterator<Item = Nibble>,
@@ -50,7 +54,10 @@ where
         // Compare remaining paths since everything before that should already be equal.
         let path_offset = path_iter.offset();
         path_iter
-            .eq(value_path.encoded_iter().skip(path_offset))
+            .eq(value_path
+                .encoded_iter()
+                .map(|x| x) // FIXME: For some reason, `Skip<_>` doesn't work without this.
+                .skip(path_offset))
             .then_some(value)
     }
 
@@ -58,30 +65,25 @@ where
         self,
         nodes: &mut NodesStorage<P, V, H>,
         values: &mut ValuesStorage<P, V, H>,
-        mut path_iter: Offseted<Peekable<I>>,
-        new_path: P,
-        new_value: V,
-    ) -> (Node<P, V, H>, Option<V>)
+        mut path_iter: Offseted<I>,
+    ) -> (Node<P, V, H>, InsertAction)
     where
         I: Iterator<Item = Nibble>,
     {
         // Retrieve the value storage to compare paths and overwrite the value if there's a match.
-        let (value_path, _, value) = values
+        let (value_path, _, _) = values
             .get_mut(self.value_ref)
             .expect("inconsistent internal tree structure");
 
         // Count the number of matching prefix nibbles (prefix) and check if the paths are equal.
         let path_offset = path_iter.offset();
         let (prefix_match_len, prefix_eq) = {
-            let mut other_iter = value_path.encoded_iter().skip(path_offset);
+            let mut other_iter = value_path.encoded_iter().skip(path_offset).peekable();
 
             // Count number of equal nibbles. Paths are completely equal if both iterators have
             // finished.
             (
-                (&mut path_iter)
-                    .zip(&mut other_iter)
-                    .take_while(|(a, b)| *a == *b)
-                    .count(),
+                path_iter.count_equals(&mut other_iter),
                 path_iter.next().is_none() && other_iter.next().is_none(),
             )
         };
@@ -89,7 +91,8 @@ where
         if prefix_eq {
             // Replace and return old value.
             // The key shouldn't have changed in this case.
-            (self.into(), Some(replace(value, new_value)))
+            let insert_action = InsertAction::Replace(self.value_ref);
+            (self.into(), insert_action)
         } else {
             // Insert an extension node.
             let prefix: SmallVec<[Nibble; 16]> = value_path
@@ -98,11 +101,13 @@ where
                 .take(prefix_match_len)
                 .collect();
 
-            // Insert the child.
-            let value_ref = values.insert(build_value::<P, V, H>(new_path, new_value));
-            let child_ref = nodes.insert(LeafNode::new(value_ref).into());
+            // Insert the child (the tree will be left inconsistent, but will be fixed later on).
+            let child_ref = nodes.insert(LeafNode::new(values.vacant_key()).into());
 
-            ((ExtensionNode::new(prefix, child_ref), self).into(), None)
+            (
+                (ExtensionNode::new(prefix, child_ref), self).into(),
+                InsertAction::Insert(child_ref),
+            )
         }
     }
 }
@@ -110,7 +115,7 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::nibble::NibbleIterator;
+    use crate::{nibble::NibbleIterator, util::build_value};
     use sha3::Keccak256;
     use slab::Slab;
     use std::{io, str::Bytes};
@@ -149,11 +154,7 @@ mod test {
         let node = LeafNode::<_, _, Keccak256>::new(value_ref);
 
         assert_eq!(
-            node.get(
-                &nodes,
-                &values,
-                Offseted::new(path.encoded_iter().peekable()),
-            ),
+            node.get(&nodes, &values, Offseted::new(path.encoded_iter()),),
             Some(&value),
         );
     }
@@ -171,11 +172,7 @@ mod test {
 
         let path = MyNodePath("invalid node".to_string());
         assert_eq!(
-            node.get(
-                &nodes,
-                &values,
-                Offseted::new(path.encoded_iter().peekable()),
-            ),
+            node.get(&nodes, &values, Offseted::new(path.encoded_iter()),),
             None,
         );
     }
@@ -189,10 +186,6 @@ mod test {
         let path = MyNodePath("hello world".to_string());
         let node = LeafNode::<MyNodePath, (), Keccak256>::new(0);
 
-        node.get(
-            &nodes,
-            &values,
-            Offseted::new(path.encoded_iter().peekable()),
-        );
+        node.get(&nodes, &values, Offseted::new(path.encoded_iter()));
     }
 }

@@ -5,7 +5,6 @@ use crate::{
     NodesStorage, TreePath, ValuesStorage,
 };
 use digest::Digest;
-use std::iter::Peekable;
 
 /// A node within the Patricia Merkle tree.
 ///
@@ -39,7 +38,7 @@ where
         &'a self,
         nodes: &'a NodesStorage<P, V, H>,
         values: &'a ValuesStorage<P, V, H>,
-        mut path_iter: Offseted<Peekable<I>>,
+        mut path_iter: Offseted<I>,
     ) -> Option<&V>
     where
         I: Iterator<Item = Nibble>,
@@ -69,33 +68,29 @@ where
         self,
         nodes: &mut NodesStorage<P, V, H>,
         values: &mut ValuesStorage<P, V, H>,
-        mut path_iter: Offseted<Peekable<I>>,
-        path: P,
-        value: V,
-    ) -> (Self, Option<V>)
+        mut path_iter: Offseted<I>,
+    ) -> (Self, InsertAction)
     where
         I: Iterator<Item = Nibble>,
     {
         match self {
-            Node::Branch(branch_node) => branch_node.insert(nodes, values, path_iter, path, value),
+            Node::Branch(branch_node) => branch_node.insert(nodes, values, path_iter),
             Node::LeafBranch(branch_node, leaf_node) => {
                 if path_iter.peek().is_none() {
-                    leaf_node.insert(nodes, values, path_iter, path, value)
+                    leaf_node.insert(nodes, values, path_iter)
                 } else {
-                    branch_node.insert(nodes, values, path_iter, path, value)
+                    branch_node.insert(nodes, values, path_iter)
                 }
             }
-            Node::Extension(extension_node) => {
-                extension_node.insert(nodes, values, path_iter, path, value)
-            }
+            Node::Extension(extension_node) => extension_node.insert(nodes, values, path_iter),
             Node::LeafExtension(extension_node, leaf_node) => {
                 if path_iter.peek().is_none() {
-                    leaf_node.insert(nodes, values, path_iter, path, value)
+                    leaf_node.insert(nodes, values, path_iter)
                 } else {
-                    extension_node.insert(nodes, values, path_iter, path, value)
+                    extension_node.insert(nodes, values, path_iter)
                 }
             }
-            Node::Leaf(leaf_node) => leaf_node.insert(nodes, values, path_iter, path, value),
+            Node::Leaf(leaf_node) => leaf_node.insert(nodes, values, path_iter),
         }
     }
 }
@@ -147,5 +142,28 @@ where
 {
     fn from(value: LeafNode<P, V, H>) -> Self {
         Self::Leaf(value)
+    }
+}
+
+/// Returned by .insert() to update the values' storage.
+pub enum InsertAction {
+    // /// No action is required.
+    // Nothing,
+    /// An insertion is required. The argument points to a node.
+    Insert(usize),
+    /// A replacement is required. The argument points to a value.
+    Replace(usize),
+
+    /// Special insert where its node_ref is not known.
+    InsertSelf,
+}
+
+impl InsertAction {
+    /// Replace `Self::InsertSelf` with `Self::Insert(node_ref)`.
+    pub fn quantize_self(self, node_ref: usize) -> Self {
+        match self {
+            Self::InsertSelf => Self::Insert(node_ref),
+            _ => self,
+        }
     }
 }

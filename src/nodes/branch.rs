@@ -1,12 +1,12 @@
 use super::LeafNode;
 use crate::{
     nibble::Nibble,
-    node::Node,
-    util::{build_value, Offseted},
+    node::{InsertAction, Node},
+    util::Offseted,
     NodesStorage, TreePath, ValuesStorage,
 };
 use digest::Digest;
-use std::{iter::Peekable, marker::PhantomData};
+use std::marker::PhantomData;
 
 #[derive(Clone, Debug)]
 pub struct BranchNode<P, V, H>
@@ -37,7 +37,7 @@ where
         &self,
         nodes: &'a NodesStorage<P, V, H>,
         values: &'a ValuesStorage<P, V, H>,
-        mut path_iter: Offseted<Peekable<I>>,
+        mut path_iter: Offseted<I>,
     ) -> Option<&'a V>
     where
         I: Iterator<Item = Nibble>,
@@ -59,20 +59,20 @@ where
         mut self,
         nodes: &mut NodesStorage<P, V, H>,
         values: &mut ValuesStorage<P, V, H>,
-        mut path_iter: Offseted<Peekable<I>>,
-        path: P,
-        value: V,
-    ) -> (Node<P, V, H>, Option<V>)
+        mut path_iter: Offseted<I>,
+    ) -> (Node<P, V, H>, InsertAction)
     where
         I: Iterator<Item = Nibble>,
     {
         // If the path iterator is finished, convert the node into a leaf-branch. Otherwise insert
         // a new choice or delegate to a child if a choice is present.
         if path_iter.peek().is_none() {
-            // Convert to leaf-branch.
-            let value_ref = values.insert(build_value::<P, V, H>(path, value));
-
-            ((self, LeafNode::new(value_ref)).into(), None)
+            // Convert to leaf-branch (the tree will be left inconsistent, but will be fixed later
+            // on).
+            (
+                (self, LeafNode::new(values.vacant_key())).into(),
+                InsertAction::InsertSelf,
+            )
         } else {
             match &mut self.choices[path_iter.next().unwrap() as u8 as usize] {
                 Some(child_ref) => {
@@ -81,17 +81,19 @@ where
                         .try_remove(*child_ref)
                         .expect("inconsistent internal tree structure");
 
-                    let (child, old_value) = child.insert(nodes, values, path_iter, path, value);
+                    let (child, insert_action) = child.insert(nodes, values, path_iter);
                     *child_ref = nodes.insert(child);
 
-                    (self.into(), old_value)
+                    let insert_action = insert_action.quantize_self(*child_ref);
+                    (self.into(), insert_action)
                 }
                 choice_ref => {
-                    // Insert new choice.
-                    let value_ref = values.insert(build_value::<P, V, H>(path, value));
-                    *choice_ref = Some(nodes.insert(LeafNode::new(value_ref).into()));
+                    // Insert new choice (the tree will be left inconsistent, but will be fixed
+                    // later on).
+                    let child_ref = nodes.insert(LeafNode::new(values.vacant_key()).into());
+                    *choice_ref = Some(child_ref);
 
-                    (self.into(), None)
+                    (self.into(), InsertAction::Insert(child_ref))
                 }
             }
         }

@@ -2,7 +2,7 @@ use crate::TreePath;
 use digest::{Digest, Output};
 use std::{
     io::{Cursor, Write},
-    ops::{Deref, DerefMut},
+    iter::Peekable,
 };
 
 pub fn build_value<P, V, H>(path: P, value: V) -> (P, Output<H>, V)
@@ -73,7 +73,7 @@ where
     }
 }
 
-pub struct Offseted<I>(I, usize)
+pub struct Offseted<I>(Peekable<I>, usize)
 where
     I: Iterator;
 
@@ -82,11 +82,28 @@ where
     I: Iterator,
 {
     pub fn new(inner: I) -> Self {
-        Self(inner, 0)
+        Self(inner.peekable(), 0)
     }
 
     pub fn offset(&self) -> usize {
         self.1
+    }
+
+    pub fn peek(&mut self) -> Option<&I::Item> {
+        self.0.peek()
+    }
+
+    pub fn count_equals<I2>(&mut self, rhs: &mut Peekable<I2>) -> usize
+    where
+        I2: Iterator,
+        I2::Item: PartialEq<I::Item>,
+    {
+        let mut count = 0;
+        while self.0.next_if(|x| rhs.next_if_eq(x).is_some()).is_some() {
+            count += 1;
+        }
+        self.1 += count;
+        count
     }
 }
 
@@ -101,25 +118,5 @@ where
             self.1 += 1;
             x
         })
-    }
-}
-
-impl<I> Deref for Offseted<I>
-where
-    I: Iterator,
-{
-    type Target = I;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<I> DerefMut for Offseted<I>
-where
-    I: Iterator,
-{
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
     }
 }
