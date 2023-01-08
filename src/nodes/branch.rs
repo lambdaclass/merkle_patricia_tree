@@ -8,6 +8,7 @@ use crate::{
 use digest::Digest;
 use std::{iter::Peekable, marker::PhantomData};
 
+#[derive(Clone, Debug)]
 pub struct BranchNode<P, V, H>
 where
     P: TreePath,

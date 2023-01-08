@@ -28,7 +28,7 @@ type ValuesStorage<P, V, H> = Slab<(P, Output<H>, V)>;
 ///   - Sometimes the value itself may be the path.
 ///   - The path may have to be preprocessed (rlp encoding, for example).
 /// By using a trait like `TreePath`, all this complexity can be easily implemented.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct PatriciaMerkleTree<P, V, H>
 where
     P: TreePath,

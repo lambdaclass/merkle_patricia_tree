@@ -9,6 +9,7 @@ use digest::Digest;
 use smallvec::SmallVec;
 use std::{iter::Peekable, marker::PhantomData};
 
+#[derive(Clone, Debug)]
 pub struct ExtensionNode<P, V, H>
 where
     P: TreePath,

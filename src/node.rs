@@ -15,6 +15,7 @@ use std::iter::Peekable;
 ///     node is also a leaf.
 ///   - Extension nodes are only used when followed by a branch, and never with other extensions
 ///     (they are combined) or leaves (they are removed).
+#[derive(Clone, Debug)]
 pub enum Node<P, V, H>
 where
     P: TreePath,
