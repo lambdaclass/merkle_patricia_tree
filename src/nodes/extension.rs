@@ -201,7 +201,7 @@ mod test {
         let mut nodes = Slab::new();
         let mut values = Slab::new();
 
-        let path = MyNodePath("\x01\x23\x45\x67".to_string());
+        let path = MyNodePath("hello world".to_string());
         let value = 42;
 
         let value_ref = values.insert(build_value::<_, _, Keccak256>(path.clone(), value));
@@ -214,7 +214,7 @@ mod test {
         );
 
         assert_eq!(
-            node.get(&nodes, &values, Offseted::new(path.encoded_iter()),),
+            node.get(&nodes, &values, Offseted::new(path.encoded_iter())),
             Some(&value),
         );
     }

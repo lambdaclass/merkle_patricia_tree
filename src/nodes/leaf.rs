@@ -154,7 +154,7 @@ mod test {
         let node = LeafNode::<_, _, Keccak256>::new(value_ref);
 
         assert_eq!(
-            node.get(&nodes, &values, Offseted::new(path.encoded_iter()),),
+            node.get(&nodes, &values, Offseted::new(path.encoded_iter())),
             Some(&value),
         );
     }
@@ -172,7 +172,7 @@ mod test {
 
         let path = MyNodePath("invalid node".to_string());
         assert_eq!(
-            node.get(&nodes, &values, Offseted::new(path.encoded_iter()),),
+            node.get(&nodes, &values, Offseted::new(path.encoded_iter())),
             None,
         );
     }
