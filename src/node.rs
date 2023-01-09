@@ -178,6 +178,7 @@ where
 }
 
 /// Returned by .insert() to update the values' storage.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum InsertAction {
     // /// No action is required.
     // Nothing,

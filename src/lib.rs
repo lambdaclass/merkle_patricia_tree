@@ -102,7 +102,19 @@ where
                             | Node::LeafExtension(_, leaf_node) => {
                                 leaf_node.update_value_ref(value_ref);
                             }
-                            _ => panic!("inconsistent_internal_tree_structure"),
+                            _ => {
+                                // TODO: Improve performance by in-place mutation.
+                                let node = self.nodes.remove(node_ref);
+                                self.nodes.insert(match node {
+                                    Node::Branch(branch_node) => {
+                                        (branch_node, LeafNode::new(value_ref)).into()
+                                    }
+                                    Node::Extension(extension_node) => {
+                                        (extension_node, LeafNode::new(value_ref)).into()
+                                    }
+                                    _ => unreachable!(),
+                                });
+                            }
                         };
 
                         None
@@ -159,5 +171,37 @@ where
             + size_of::<(P, Output<H>, V)>() * self.values.capacity();
 
         (mem_consumed, mem_reserved)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use sha3::Keccak256;
+    use std::{io, str::Bytes};
+
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    struct MyNodePath(String);
+
+    impl TreePath for MyNodePath {
+        type Iterator<'a> = NibbleIterator<Bytes<'a>>;
+
+        fn encode(&self, mut target: impl io::Write) -> io::Result<()> {
+            target.write_all(self.0.as_bytes())
+        }
+
+        fn encoded_iter(&self) -> Self::Iterator<'_> {
+            NibbleIterator::new(self.0.bytes())
+        }
+    }
+
+    // Temporary test for bug.
+    #[test]
+    fn test() {
+        let mut pmt = PatriciaMerkleTree::<MyNodePath, (), Keccak256>::new();
+
+        pmt.insert(MyNodePath("ab".to_string()), ());
+        pmt.insert(MyNodePath("ac".to_string()), ());
+        pmt.insert(MyNodePath("a".to_string()), ());
     }
 }
