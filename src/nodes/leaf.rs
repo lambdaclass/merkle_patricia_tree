@@ -110,6 +110,32 @@ where
             )
         }
     }
+
+    pub fn remove<I>(
+        self,
+        _nodes: &mut NodesStorage<P, V, H>,
+        values: &mut ValuesStorage<P, V, H>,
+        path_iter: Offseted<I>,
+    ) -> (Option<Node<P, V, H>>, Option<V>)
+    where
+        I: Iterator<Item = Nibble>,
+    {
+        // Retrieve the value storage to compare paths and return the value if there's a match.
+        let (value_path, _, _) = values
+            .get(self.value_ref)
+            .expect("inconsistent internal tree structure");
+
+        // Compare remaining paths since everything before that should already be equal, then return
+        // the value if they match.
+        let path_offset = path_iter.offset();
+        path_iter
+            .eq(value_path
+                .encoded_iter()
+                .map(|x| x) // FIXME: For some reason, `Skip<_>` doesn't work without this.
+                .skip(path_offset))
+            .then(|| (None, Some(values.remove(self.value_ref).2)))
+            .unwrap_or((Some(self.into()), None))
+    }
 }
 
 #[cfg(test)]

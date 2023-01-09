@@ -116,11 +116,11 @@ where
                 let mut choices = [None; 16];
 
                 // Insert itself (after updating prefix).
-                let index = self.prefix.remove(0) as u8 as usize;
+                let index = self.prefix.remove(0) as usize;
                 choices[index] = Some(nodes.insert(self.into()));
 
                 // Create and insert new node.
-                let index = path_iter.next().unwrap() as u8 as usize;
+                let index = path_iter.next().unwrap() as usize;
                 let child_ref = nodes.insert(LeafNode::new(values.vacant_key()).into());
                 choices[index] = Some(child_ref);
 
@@ -138,12 +138,12 @@ where
                     let mut choices = [None; 16];
 
                     // Insert itself (after updating prefix).
-                    let index = self.prefix[prefix_match_len] as u8 as usize;
+                    let index = self.prefix[prefix_match_len] as usize;
                     self.prefix = self.prefix.into_iter().skip(prefix_match_len + 1).collect();
                     choices[index] = Some(nodes.insert(self.into()));
 
                     // Create and insert new node.
-                    let index = path_iter.next().unwrap() as u8 as usize;
+                    let index = path_iter.next().unwrap() as usize;
                     let child_ref = nodes.insert(LeafNode::new(values.vacant_key()).into());
                     choices[index] = Some(child_ref);
 
@@ -156,6 +156,29 @@ where
                 )
             }
         }
+    }
+
+    pub fn remove<I>(
+        mut self,
+        nodes: &mut NodesStorage<P, V, H>,
+        values: &mut ValuesStorage<P, V, H>,
+        path_iter: Offseted<I>,
+    ) -> (Option<Node<P, V, H>>, Option<V>)
+    where
+        I: Iterator<Item = Nibble>,
+    {
+        let (new_node, old_value) = nodes
+            .try_remove(self.child_ref)
+            .expect("inconsistent internal tree structure")
+            .remove(nodes, values, path_iter);
+
+        (
+            new_node.map(|new_node| {
+                self.child_ref = nodes.insert(new_node);
+                self.into()
+            }),
+            old_value,
+        )
     }
 }
 

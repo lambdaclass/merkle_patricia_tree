@@ -81,7 +81,7 @@ where
     where
         P: Clone,
     {
-        match self.nodes.try_remove(0) {
+        match self.nodes.try_remove(self.root_ref) {
             Some(root_node) => {
                 // If the tree is not empty, call the root node's insertion logic.
                 let path_iter = Offseted::new(path.encoded_iter());
@@ -121,17 +121,29 @@ where
             None => {
                 // If the tree is empty, just add a leaf.
                 let value_ref = self.values.insert(build_value::<P, V, H>(path, value));
-                let node_ref = self.nodes.insert(LeafNode::new(value_ref).into());
-                assert_eq!(node_ref, 0, "inconsistent internal tree structure");
+                self.root_ref = self.nodes.insert(LeafNode::new(value_ref).into());
 
                 None
             }
         }
     }
 
-    // pub fn remove(&mut self, _path: &V::Path) -> Option<V> {
-    //     todo!()
-    // }
+    pub fn remove(&mut self, path: &P) -> Option<V> {
+        match self.nodes.try_remove(self.root_ref) {
+            Some(root_node) => {
+                // If the tree is not empty, call the root node's removal logic.
+                let path_iter = Offseted::new(path.encoded_iter());
+                let (root_node, old_value) =
+                    root_node.remove(&mut self.nodes, &mut self.values, path_iter);
+                if let Some(root_node) = root_node {
+                    self.root_ref = self.nodes.insert(root_node);
+                }
+
+                old_value
+            }
+            None => None,
+        }
+    }
 
     // // TODO: Iterators.
 

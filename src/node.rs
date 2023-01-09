@@ -93,6 +93,38 @@ where
             Node::Leaf(leaf_node) => leaf_node.insert(nodes, values, path_iter),
         }
     }
+
+    pub fn remove<I>(
+        self,
+        nodes: &mut NodesStorage<P, V, H>,
+        values: &mut ValuesStorage<P, V, H>,
+        mut path_iter: Offseted<I>,
+    ) -> (Option<Self>, Option<V>)
+    where
+        I: Iterator<Item = Nibble>,
+    {
+        match self {
+            Node::Branch(branch_node) => branch_node.remove(nodes, values, path_iter),
+            Node::LeafBranch(branch_node, leaf_node) => {
+                if path_iter.peek().is_none() {
+                    let (new_node, old_value) = leaf_node.remove(nodes, values, path_iter);
+                    (new_node.or(Some(branch_node.into())), old_value)
+                } else {
+                    branch_node.remove(nodes, values, path_iter)
+                }
+            }
+            Node::Extension(extension_node) => extension_node.remove(nodes, values, path_iter),
+            Node::LeafExtension(extension_node, leaf_node) => {
+                if path_iter.peek().is_none() {
+                    let (new_node, old_value) = leaf_node.remove(nodes, values, path_iter);
+                    (new_node.or(Some(extension_node.into())), old_value)
+                } else {
+                    extension_node.remove(nodes, values, path_iter)
+                }
+            }
+            Node::Leaf(leaf_node) => leaf_node.remove(nodes, values, path_iter),
+        }
+    }
 }
 
 impl<P, V, H> From<BranchNode<P, V, H>> for Node<P, V, H>

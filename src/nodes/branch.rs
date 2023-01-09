@@ -74,7 +74,7 @@ where
                 InsertAction::InsertSelf,
             )
         } else {
-            match &mut self.choices[path_iter.next().unwrap() as u8 as usize] {
+            match &mut self.choices[path_iter.next().unwrap() as usize] {
                 Some(child_ref) => {
                     // Delegate to child.
                     let child = nodes
@@ -97,6 +97,59 @@ where
                 }
             }
         }
+    }
+
+    pub fn remove<I>(
+        mut self,
+        nodes: &mut NodesStorage<P, V, H>,
+        values: &mut ValuesStorage<P, V, H>,
+        mut path_iter: Offseted<I>,
+    ) -> (Option<Node<P, V, H>>, Option<V>)
+    where
+        I: Iterator<Item = Nibble>,
+    {
+        let child_index = match path_iter.next() {
+            Some(x) => x as usize,
+            None => return (Some(self.into()), None),
+        };
+
+        let child_ref = match self.choices[child_index] {
+            Some(x) => x,
+            None => return (Some(self.into()), None),
+        };
+
+        let (new_node, old_value) = nodes
+            .try_remove(child_ref)
+            .expect("inconsistent internal tree structure")
+            .remove(nodes, values, path_iter);
+
+        let new_node = if let Some(new_node) = new_node {
+            self.choices[child_index] = Some(nodes.insert(new_node));
+            Some(self.into())
+        } else {
+            let choices = self
+                .choices
+                .iter()
+                .copied()
+                .try_fold(None, |acc, child_ref| match (acc, child_ref) {
+                    (None, None) => Ok(None),
+                    (None, Some(child_ref)) => Ok(Some(child_ref)),
+                    (Some(acc), None) => Ok(Some(acc)),
+                    (Some(_), Some(_)) => Err(()),
+                })
+                .ok();
+
+            match choices {
+                Some(x) => x.map(|child_ref| {
+                    nodes
+                        .try_remove(child_ref)
+                        .expect("inconsistent internal tree structure")
+                }),
+                None => Some(self.into()),
+            }
+        };
+
+        (new_node, old_value)
     }
 }
 
