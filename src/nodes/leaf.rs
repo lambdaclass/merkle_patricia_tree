@@ -129,10 +129,7 @@ where
         // the value if they match.
         let path_offset = path_iter.offset();
         path_iter
-            .eq(value_path
-                .encoded_iter()
-                .map(|x| x) // FIXME: For some reason, `Skip<_>` doesn't work without this.
-                .skip(path_offset))
+            .eq(value_path.encoded_iter().skip(path_offset))
             .then(|| (None, Some(values.remove(self.value_ref).2)))
             .unwrap_or((Some(self.into()), None))
     }
@@ -141,23 +138,35 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{nibble::NibbleIterator, util::build_value};
+    use crate::util::build_value;
     use sha3::Keccak256;
     use slab::Slab;
-    use std::{io, str::Bytes};
+    use std::{iter::Copied, slice::Iter};
 
     #[derive(Clone, Debug, Eq, PartialEq)]
-    struct MyNodePath(String);
+    struct MyNodePath(Vec<Nibble>);
 
     impl TreePath for MyNodePath {
-        type Iterator<'a> = NibbleIterator<Bytes<'a>>;
+        type Iterator<'a> = Copied<Iter<'a, Nibble>>;
 
-        fn encode(&self, mut target: impl io::Write) -> io::Result<()> {
-            target.write_all(self.0.as_bytes())
+        fn encode(&self, mut target: impl std::io::Write) -> std::io::Result<()> {
+            let mut iter = self.0.iter().copied().peekable();
+            if self.0.len() % 2 == 1 {
+                target.write_all(&[iter.next().unwrap() as u8])?;
+            }
+
+            while iter.peek().is_some() {
+                let a = iter.next().unwrap() as u8;
+                let b = iter.next().unwrap() as u8;
+
+                target.write_all(&[(a << 4) | b])?;
+            }
+
+            Ok(())
         }
 
         fn encoded_iter(&self) -> Self::Iterator<'_> {
-            NibbleIterator::new(self.0.bytes())
+            self.0.iter().copied()
         }
     }
 
@@ -173,7 +182,7 @@ mod test {
         let nodes = Slab::new();
         let mut values = Slab::new();
 
-        let path = MyNodePath("hello world".to_string());
+        let path = MyNodePath(vec![]);
         let value = 42;
 
         let value_ref = values.insert(build_value::<_, _, Keccak256>(path.clone(), value));
@@ -190,13 +199,13 @@ mod test {
         let nodes = Slab::new();
         let mut values = Slab::new();
 
-        let path = MyNodePath("hello world".to_string());
+        let path = MyNodePath(vec![Nibble::V0]);
         let value = 42;
 
         let value_ref = values.insert(build_value::<_, _, Keccak256>(path, value));
         let node = LeafNode::<_, _, Keccak256>::new(value_ref);
 
-        let path = MyNodePath("invalid node".to_string());
+        let path = MyNodePath(vec![Nibble::V1]);
         assert_eq!(
             node.get(&nodes, &values, Offseted::new(path.encoded_iter())),
             None,
@@ -209,7 +218,7 @@ mod test {
         let nodes = Slab::new();
         let values = Slab::new();
 
-        let path = MyNodePath("hello world".to_string());
+        let path = MyNodePath(vec![Nibble::V0]);
         let node = LeafNode::<MyNodePath, (), Keccak256>::new(0);
 
         node.get(&nodes, &values, Offseted::new(path.encoded_iter()));

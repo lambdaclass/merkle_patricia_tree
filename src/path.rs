@@ -6,6 +6,9 @@ pub trait TreePath {
     where
         Self: 'a;
 
+    /// Encode the path for hashing.
     fn encode(&self, target: impl Write) -> io::Result<()>;
+
+    /// Iterate over the encoded path.
     fn encoded_iter(&self) -> Self::Iterator<'_>;
 }

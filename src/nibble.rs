@@ -52,6 +52,7 @@ impl From<Nibble> for u8 {
     }
 }
 
+#[derive(Debug)]
 pub struct NibbleIterator<I>
 where
     I: Iterator<Item = u8>,
