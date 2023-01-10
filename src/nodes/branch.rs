@@ -36,7 +36,7 @@ where
     pub fn get<'a, I>(
         &self,
         nodes: &'a NodesStorage<P, V, H>,
-        values: &'a ValuesStorage<P, V, H>,
+        values: &'a ValuesStorage<P, V>,
         mut path_iter: Offseted<I>,
     ) -> Option<&'a V>
     where
@@ -58,7 +58,7 @@ where
     pub fn insert<I>(
         mut self,
         nodes: &mut NodesStorage<P, V, H>,
-        values: &mut ValuesStorage<P, V, H>,
+        values: &mut ValuesStorage<P, V>,
         mut path_iter: Offseted<I>,
     ) -> (Node<P, V, H>, InsertAction)
     where
@@ -102,7 +102,7 @@ where
     pub fn remove<I>(
         mut self,
         nodes: &mut NodesStorage<P, V, H>,
-        values: &mut ValuesStorage<P, V, H>,
+        values: &mut ValuesStorage<P, V>,
         mut path_iter: Offseted<I>,
     ) -> (Option<Node<P, V, H>>, Option<V>)
     where
@@ -156,7 +156,6 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::util::build_value;
     use sha3::Keccak256;
     use slab::Slab;
     use std::{iter::Copied, slice::Iter};
@@ -230,7 +229,7 @@ mod test {
         let path = MyNodePath(vec![Nibble::V0]);
         let value = 42;
 
-        let value_ref = values.insert(build_value::<_, _, Keccak256>(path.clone(), value));
+        let value_ref = values.insert((path.clone(), value));
         let child_node = LeafNode::<MyNodePath, i32, Keccak256>::new(value_ref);
         let child_ref = nodes.insert(child_node.into());
 
@@ -254,7 +253,7 @@ mod test {
         let path = MyNodePath(vec![Nibble::V0]);
         let value = 42;
 
-        let value_ref = values.insert(build_value::<_, _, Keccak256>(path.clone(), value));
+        let value_ref = values.insert((path.clone(), value));
         let child_node = LeafNode::<MyNodePath, i32, Keccak256>::new(value_ref);
         let child_ref = nodes.insert(child_node.into());
 

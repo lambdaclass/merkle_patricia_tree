@@ -1,30 +1,16 @@
-use crate::TreePath;
 use digest::{Digest, Output};
 use std::{
     io::{Cursor, Write},
     iter::Peekable,
 };
 
-pub fn build_value<P, V, H>(path: P, value: V) -> (P, Output<H>, V)
-where
-    P: TreePath,
-    H: Digest,
-{
-    let mut digest_buf = DigestBuf::<H>::new();
-
-    // `DigestBuf` should never return an error.
-    path.encode(&mut digest_buf).unwrap();
-    let hashed_path = digest_buf.finalize();
-
-    (path, hashed_path, value)
-}
-
-struct DigestBuf<H>
+pub struct DigestBuf<H>
 where
     H: Digest,
 {
     hasher: H,
     buffer: Cursor<[u8; 256]>,
+    updated: bool,
 }
 
 impl<H> DigestBuf<H>
@@ -35,14 +21,33 @@ where
         Self {
             hasher: H::new(),
             buffer: Cursor::new([0u8; 256]),
+            updated: false,
         }
     }
 
-    // TODO: To check: https://github.com/fizyk20/generic-array/issues/132
+    pub fn extract_or_finalize(mut self, target: &mut Output<H>) -> usize {
+        if self.updated || self.buffer.position() >= 32 {
+            self.flush_update();
+            self.hasher.finalize_into(target);
+            32
+        } else {
+            let pos = self.buffer.position() as usize;
+            target[..pos].copy_from_slice(&self.buffer.get_ref()[..pos]);
+            pos
+        }
+    }
+
     pub fn finalize(mut self) -> Output<H> {
-        // The .unwrap() next line is infallible (see flush implementation).
-        self.flush().unwrap();
+        self.flush_update();
         self.hasher.finalize()
+    }
+
+    fn flush_update(&mut self) {
+        let buffer = &self.buffer.get_ref()[..self.buffer.position() as usize];
+
+        self.hasher.update(buffer);
+        self.buffer.set_position(0);
+        self.updated = true;
     }
 }
 
@@ -57,6 +62,7 @@ where
             if self.buffer.position() as usize == self.buffer.get_ref().len() {
                 self.hasher.update(self.buffer.get_ref());
                 self.buffer.set_position(0);
+                self.updated = true;
             }
         }
 
@@ -64,11 +70,6 @@ where
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
-        let buffer = &self.buffer.get_ref()[..self.buffer.position() as usize];
-
-        self.hasher.update(buffer);
-        self.buffer.set_position(0);
-
         Ok(())
     }
 }

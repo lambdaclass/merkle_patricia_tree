@@ -9,7 +9,7 @@ pub use self::{
     nibble::{Nibble, NibbleIterator},
     path::TreePath,
 };
-use crate::{nodes::LeafNode, util::build_value};
+use crate::nodes::LeafNode;
 use digest::{Digest, Output};
 use node::InsertAction;
 use slab::Slab;
@@ -23,7 +23,7 @@ mod path;
 mod util;
 
 type NodesStorage<P, V, H> = Slab<Node<P, V, H>>;
-type ValuesStorage<P, V, H> = Slab<(P, Output<H>, V)>;
+type ValuesStorage<P, V> = Slab<(P, V)>;
 
 /// Patricia Merkle Tree implementation.
 ///
@@ -45,7 +45,7 @@ where
     /// Contains all the nodes.
     nodes: NodesStorage<P, V, H>,
     /// Stores the actual nodes' hashed paths and values.
-    values: ValuesStorage<P, V, H>,
+    values: ValuesStorage<P, V>,
 }
 
 impl<P, V, H> PatriciaMerkleTree<P, V, H>
@@ -91,7 +91,7 @@ where
 
                 match insert_action.quantize_self(self.root_ref) {
                     InsertAction::Insert(node_ref) => {
-                        let value_ref = self.values.insert(build_value::<P, V, H>(path, value));
+                        let value_ref = self.values.insert((path, value));
                         match self
                             .nodes
                             .get_mut(node_ref)
@@ -120,7 +120,7 @@ where
                         None
                     }
                     InsertAction::Replace(value_ref) => {
-                        let (_, _, old_value) = self
+                        let (_, old_value) = self
                             .values
                             .get_mut(value_ref)
                             .expect("inconsistent internal tree structure");
@@ -132,7 +132,7 @@ where
             }
             None => {
                 // If the tree is empty, just add a leaf.
-                let value_ref = self.values.insert(build_value::<P, V, H>(path, value));
+                let value_ref = self.values.insert((path, value));
                 self.root_ref = self.nodes.insert(LeafNode::new(value_ref).into());
 
                 None

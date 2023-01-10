@@ -2,12 +2,12 @@ use super::ExtensionNode;
 use crate::{
     nibble::Nibble,
     node::{InsertAction, Node},
-    util::Offseted,
+    util::{DigestBuf, Offseted},
     NodesStorage, TreePath, ValuesStorage,
 };
-use digest::Digest;
+use digest::{Digest, Output};
 use smallvec::SmallVec;
-use std::marker::PhantomData;
+use std::{io::Write, marker::PhantomData};
 
 #[derive(Clone, Debug)]
 pub struct LeafNode<P, V, H>
@@ -16,7 +16,8 @@ where
     H: Digest,
 {
     value_ref: usize,
-    // hash: Option<<H::OutputSize as ArrayLength<u8>>::ArrayType>,
+    hash: (usize, Output<H>),
+
     phantom: PhantomData<(P, V, H)>,
 }
 
@@ -28,7 +29,7 @@ where
     pub fn new(value_ref: usize) -> Self {
         Self {
             value_ref,
-            // hash: None,
+            hash: (0, Default::default()),
             phantom: PhantomData,
         }
     }
@@ -40,40 +41,37 @@ where
     pub fn get<'a, I>(
         &self,
         _nodes: &NodesStorage<P, V, H>,
-        values: &'a ValuesStorage<P, V, H>,
+        values: &'a ValuesStorage<P, V>,
         path_iter: Offseted<I>,
     ) -> Option<&'a V>
     where
         I: Iterator<Item = Nibble>,
     {
         // Retrieve the value storage to compare paths and return the value if there's a match.
-        let (value_path, _, value) = values
+        let (value_path, value) = values
             .get(self.value_ref)
             .expect("inconsistent internal tree structure");
 
         // Compare remaining paths since everything before that should already be equal.
         let path_offset = path_iter.offset();
         path_iter
-            .eq(value_path
-                .encoded_iter()
-                .map(|x| x) // FIXME: For some reason, `Skip<_>` doesn't work without this.
-                .skip(path_offset))
+            .eq(value_path.encoded_iter().skip(path_offset))
             .then_some(value)
     }
 
     pub fn insert<I>(
         self,
         nodes: &mut NodesStorage<P, V, H>,
-        values: &mut ValuesStorage<P, V, H>,
+        values: &mut ValuesStorage<P, V>,
         mut path_iter: Offseted<I>,
     ) -> (Node<P, V, H>, InsertAction)
     where
         I: Iterator<Item = Nibble>,
     {
         // Retrieve the value storage to compare paths and overwrite the value if there's a match.
-        let (value_path, _, _) = values
+        let (value_path, _) = values
             .get_mut(self.value_ref)
-            .expect("inconsistent internal tree structure");
+            .expect("inconsistentinternal tree structure");
 
         // Count the number of matching prefix nibbles (prefix) and check if the paths are equal.
         let path_offset = path_iter.offset();
@@ -114,14 +112,14 @@ where
     pub fn remove<I>(
         self,
         _nodes: &mut NodesStorage<P, V, H>,
-        values: &mut ValuesStorage<P, V, H>,
+        values: &mut ValuesStorage<P, V>,
         path_iter: Offseted<I>,
     ) -> (Option<Node<P, V, H>>, Option<V>)
     where
         I: Iterator<Item = Nibble>,
     {
         // Retrieve the value storage to compare paths and return the value if there's a match.
-        let (value_path, _, _) = values
+        let (value_path, _) = values
             .get(self.value_ref)
             .expect("inconsistent internal tree structure");
 
@@ -130,15 +128,40 @@ where
         let path_offset = path_iter.offset();
         path_iter
             .eq(value_path.encoded_iter().skip(path_offset))
-            .then(|| (None, Some(values.remove(self.value_ref).2)))
+            .then(|| (None, Some(values.remove(self.value_ref).1)))
             .unwrap_or((Some(self.into()), None))
     }
+
+    // pub fn compute_hash(&mut self, values: &ValuesStorage<P, V>, key_offset: usize) -> &[u8] {
+    //     if self.hash.0 == 0 {
+    //         let (key, _, value) = values
+    //             .get(self.value_ref)
+    //             .expect("inconsistent internal tree structure");
+
+    //         let mut digest_buf = DigestBuf::<H>::new();
+
+    //         // Encode list prefix (length = 2).
+    //         digest_buf.write_all(&[0xC2]).unwrap();
+
+    //         // TODO: Encode key.
+    //         // TODO: Improve performance by avoiding allocations.
+    //         let key: Vec<_> = key.encoded_iter().skip(key_offset).collect();
+    //         if key.len() % 2 == 1 {
+    //             key.insert(0, 0x20)
+    //         }
+
+    //         // TODO: Encode value.
+
+    //         self.hash.0 = digest_buf.extract_or_finalize(&mut self.hash.1);
+    //     }
+
+    //     &self.hash.1[..self.hash.0]
+    // }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::util::build_value;
     use sha3::Keccak256;
     use slab::Slab;
     use std::{iter::Copied, slice::Iter};
@@ -185,7 +208,7 @@ mod test {
         let path = MyNodePath(vec![]);
         let value = 42;
 
-        let value_ref = values.insert(build_value::<_, _, Keccak256>(path.clone(), value));
+        let value_ref = values.insert((path.clone(), value));
         let node = LeafNode::<_, _, Keccak256>::new(value_ref);
 
         assert_eq!(
@@ -202,7 +225,7 @@ mod test {
         let path = MyNodePath(vec![Nibble::V0]);
         let value = 42;
 
-        let value_ref = values.insert(build_value::<_, _, Keccak256>(path, value));
+        let value_ref = values.insert((path, value));
         let node = LeafNode::<_, _, Keccak256>::new(value_ref);
 
         let path = MyNodePath(vec![Nibble::V1]);

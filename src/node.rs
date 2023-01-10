@@ -37,7 +37,7 @@ where
     pub fn get<'a, I>(
         &'a self,
         nodes: &'a NodesStorage<P, V, H>,
-        values: &'a ValuesStorage<P, V, H>,
+        values: &'a ValuesStorage<P, V>,
         mut path_iter: Offseted<I>,
     ) -> Option<&V>
     where
@@ -67,7 +67,7 @@ where
     pub fn insert<I>(
         self,
         nodes: &mut NodesStorage<P, V, H>,
-        values: &mut ValuesStorage<P, V, H>,
+        values: &mut ValuesStorage<P, V>,
         mut path_iter: Offseted<I>,
     ) -> (Self, InsertAction)
     where
@@ -97,7 +97,7 @@ where
     pub fn remove<I>(
         self,
         nodes: &mut NodesStorage<P, V, H>,
-        values: &mut ValuesStorage<P, V, H>,
+        values: &mut ValuesStorage<P, V>,
         mut path_iter: Offseted<I>,
     ) -> (Option<Self>, Option<V>)
     where
