@@ -1,8 +1,63 @@
+use crate::Nibble;
 use digest::{Digest, Output};
 use std::{
     io::{Cursor, Write},
     iter::Peekable,
 };
+
+pub fn write_slice(value: &[u8], mut target: impl Write) {
+    if value.len() <= 55 {
+        target.write_all(&[0x80 + value.len() as u8]).unwrap();
+    } else {
+        let len_bytes = value.len().to_be_bytes();
+        let write_offset = len_bytes.iter().copied().take_while(|&x| x == 0).count();
+        target
+            .write_all(&[0xB7 + (len_bytes.len() - write_offset) as u8])
+            .unwrap();
+        target.write_all(&len_bytes[write_offset..]).unwrap();
+    }
+
+    target.write_all(value).unwrap();
+}
+
+pub fn write_list(payload: &[u8], mut target: impl Write) {
+    if payload.len() <= 55 {
+        target.write_all(&[0xC0 + payload.len() as u8]).unwrap();
+    } else {
+        let len_bytes = payload.len().to_be_bytes();
+        let write_offset = len_bytes.iter().copied().take_while(|&x| x == 0).count();
+        target
+            .write_all(&[0xF7 + (len_bytes.len() - write_offset) as u8])
+            .unwrap();
+        target.write_all(&len_bytes[write_offset..]).unwrap();
+    }
+
+    target.write_all(payload).unwrap();
+}
+
+// TODO: Improve performance.
+pub fn encode_path(nibbles: &[Nibble]) -> Vec<u8> {
+    let flag = 0x20;
+    if nibbles.len() % 2 == 1 {
+        let flag = flag | 0x10;
+
+        let mut target = Vec::new();
+        target.push(flag | (nibbles[0] as u8));
+        target.extend(
+            nibbles[1..]
+                .chunks(2)
+                .map(|x| (u8::from(x[0]) << 4) | u8::from(x[1])),
+        );
+
+        target
+    } else {
+        Vec::from_iter(
+            nibbles
+                .chunks(2)
+                .map(|x| (u8::from(x[0]) << 4) | u8::from(x[1])),
+        )
+    }
+}
 
 pub struct DigestBuf<H>
 where

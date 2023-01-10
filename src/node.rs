@@ -18,48 +18,32 @@ use digest::Digest;
 pub enum Node<P, V, H>
 where
     P: TreePath,
+    V: AsRef<[u8]>,
     H: Digest,
 {
     Branch(BranchNode<P, V, H>),
-    LeafBranch(BranchNode<P, V, H>, LeafNode<P, V, H>),
-
     Extension(ExtensionNode<P, V, H>),
-    LeafExtension(ExtensionNode<P, V, H>, LeafNode<P, V, H>),
-
     Leaf(LeafNode<P, V, H>),
 }
 
 impl<P, V, H> Node<P, V, H>
 where
     P: TreePath,
+    V: AsRef<[u8]>,
     H: Digest,
 {
     pub fn get<'a, I>(
         &'a self,
         nodes: &'a NodesStorage<P, V, H>,
         values: &'a ValuesStorage<P, V>,
-        mut path_iter: Offseted<I>,
+        path_iter: Offseted<I>,
     ) -> Option<&V>
     where
         I: Iterator<Item = Nibble>,
     {
         match self {
             Node::Branch(branch_node) => branch_node.get(nodes, values, path_iter),
-            Node::LeafBranch(branch_node, leaf_node) => {
-                if path_iter.peek().is_none() {
-                    leaf_node.get(nodes, values, path_iter)
-                } else {
-                    branch_node.get(nodes, values, path_iter)
-                }
-            }
             Node::Extension(extension_node) => extension_node.get(nodes, values, path_iter),
-            Node::LeafExtension(extension_node, leaf_node) => {
-                if path_iter.peek().is_none() {
-                    leaf_node.get(nodes, values, path_iter)
-                } else {
-                    extension_node.get(nodes, values, path_iter)
-                }
-            }
             Node::Leaf(leaf_node) => leaf_node.get(nodes, values, path_iter),
         }
     }
@@ -68,28 +52,14 @@ where
         self,
         nodes: &mut NodesStorage<P, V, H>,
         values: &mut ValuesStorage<P, V>,
-        mut path_iter: Offseted<I>,
+        path_iter: Offseted<I>,
     ) -> (Self, InsertAction)
     where
         I: Iterator<Item = Nibble>,
     {
         match self {
             Node::Branch(branch_node) => branch_node.insert(nodes, values, path_iter),
-            Node::LeafBranch(branch_node, leaf_node) => {
-                if path_iter.peek().is_none() {
-                    leaf_node.insert(nodes, values, path_iter)
-                } else {
-                    branch_node.insert(nodes, values, path_iter)
-                }
-            }
             Node::Extension(extension_node) => extension_node.insert(nodes, values, path_iter),
-            Node::LeafExtension(extension_node, leaf_node) => {
-                if path_iter.peek().is_none() {
-                    leaf_node.insert(nodes, values, path_iter)
-                } else {
-                    extension_node.insert(nodes, values, path_iter)
-                }
-            }
             Node::Leaf(leaf_node) => leaf_node.insert(nodes, values, path_iter),
         }
     }
@@ -98,31 +68,28 @@ where
         self,
         nodes: &mut NodesStorage<P, V, H>,
         values: &mut ValuesStorage<P, V>,
-        mut path_iter: Offseted<I>,
+        path_iter: Offseted<I>,
     ) -> (Option<Self>, Option<V>)
     where
         I: Iterator<Item = Nibble>,
     {
         match self {
             Node::Branch(branch_node) => branch_node.remove(nodes, values, path_iter),
-            Node::LeafBranch(branch_node, leaf_node) => {
-                if path_iter.peek().is_none() {
-                    let (new_node, old_value) = leaf_node.remove(nodes, values, path_iter);
-                    (new_node.or(Some(branch_node.into())), old_value)
-                } else {
-                    branch_node.remove(nodes, values, path_iter)
-                }
-            }
             Node::Extension(extension_node) => extension_node.remove(nodes, values, path_iter),
-            Node::LeafExtension(extension_node, leaf_node) => {
-                if path_iter.peek().is_none() {
-                    let (new_node, old_value) = leaf_node.remove(nodes, values, path_iter);
-                    (new_node.or(Some(extension_node.into())), old_value)
-                } else {
-                    extension_node.remove(nodes, values, path_iter)
-                }
-            }
             Node::Leaf(leaf_node) => leaf_node.remove(nodes, values, path_iter),
+        }
+    }
+
+    pub fn compute_hash(
+        &mut self,
+        nodes: &mut NodesStorage<P, V, H>,
+        values: &ValuesStorage<P, V>,
+        key_offset: usize,
+    ) -> &[u8] {
+        match self {
+            Node::Branch(branch_node) => branch_node.compute_hash(nodes, values, key_offset),
+            Node::Extension(extension_node) => extension_node.compute_hash(nodes, values, key_offset),
+            Node::Leaf(leaf_node) => leaf_node.compute_hash(nodes, values, key_offset),
         }
     }
 }
@@ -130,6 +97,7 @@ where
 impl<P, V, H> From<BranchNode<P, V, H>> for Node<P, V, H>
 where
     P: TreePath,
+    V: AsRef<[u8]>,
     H: Digest,
 {
     fn from(value: BranchNode<P, V, H>) -> Self {
@@ -137,19 +105,10 @@ where
     }
 }
 
-impl<P, V, H> From<(BranchNode<P, V, H>, LeafNode<P, V, H>)> for Node<P, V, H>
-where
-    P: TreePath,
-    H: Digest,
-{
-    fn from(value: (BranchNode<P, V, H>, LeafNode<P, V, H>)) -> Self {
-        Self::LeafBranch(value.0, value.1)
-    }
-}
-
 impl<P, V, H> From<ExtensionNode<P, V, H>> for Node<P, V, H>
 where
     P: TreePath,
+    V: AsRef<[u8]>,
     H: Digest,
 {
     fn from(value: ExtensionNode<P, V, H>) -> Self {
@@ -157,19 +116,10 @@ where
     }
 }
 
-impl<P, V, H> From<(ExtensionNode<P, V, H>, LeafNode<P, V, H>)> for Node<P, V, H>
-where
-    P: TreePath,
-    H: Digest,
-{
-    fn from(value: (ExtensionNode<P, V, H>, LeafNode<P, V, H>)) -> Self {
-        Self::LeafExtension(value.0, value.1)
-    }
-}
-
 impl<P, V, H> From<LeafNode<P, V, H>> for Node<P, V, H>
 where
     P: TreePath,
+    V: AsRef<[u8]>,
     H: Digest,
 {
     fn from(value: LeafNode<P, V, H>) -> Self {
