@@ -1,8 +1,4 @@
 //! # Patricia Merkle Tree
-//!
-//! **Features**
-//!   - Variable-length keys.
-//!   -
 
 use self::node::Node;
 pub use self::{nibble::Nibble, path::TreePath};
@@ -48,6 +44,7 @@ where
     V: AsRef<[u8]>,
     H: Digest,
 {
+    /// Create an empty tree.
     pub fn new() -> Self {
         Self {
             root_ref: 0,
@@ -56,15 +53,17 @@ where
         }
     }
 
+    /// Return whether the tree is empty.
     pub fn is_empty(&self) -> bool {
         self.nodes.is_empty()
     }
 
+    /// Return the number of values in the tree.
     pub fn len(&self) -> usize {
-        self.nodes.len()
+        self.values.len()
     }
 
-    /// Retrieves a value from the tree given its path.
+    /// Retrieve a value from the tree given its path.
     pub fn get(&self, path: &P) -> Option<&V> {
         self.nodes.get(self.root_ref).and_then(|root_node| {
             let path_iter = Offseted::new(path.encoded_iter());
@@ -72,6 +71,7 @@ where
         })
     }
 
+    /// Insert a value into the tree.
     pub fn insert(&mut self, path: P, value: V) -> Option<V>
     where
         P: Clone,
@@ -122,6 +122,7 @@ where
         }
     }
 
+    /// Remove a value from the tree.
     pub fn remove(&mut self, path: &P) -> Option<V> {
         match self.nodes.try_remove(self.root_ref) {
             Some(root_node) => {
@@ -139,8 +140,9 @@ where
         }
     }
 
-    // // TODO: Iterators.
+    // TODO: Iterators.
 
+    /// Return the root hash of the tree (or recompute if needed).
     pub fn compute_hash(&mut self) -> Option<Output<H>> {
         self.nodes.try_remove(self.root_ref).map(|mut root_node| {
             // TODO: Test what happens when the root node's hash encoding is hashed (len == 32).
@@ -167,34 +169,35 @@ where
     }
 }
 
-// #[cfg(test)]
-// mod test {
-//     use super::*;
-//     use sha3::Keccak256;
-//     use std::{io, str::Bytes};
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::nibble::NibbleIterator;
+    use sha3::Keccak256;
+    use std::{io, str::Bytes};
 
-//     #[derive(Clone, Debug, Eq, PartialEq)]
-//     struct MyNodePath(String);
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    struct MyNodePath(String);
 
-//     impl TreePath for MyNodePath {
-//         type Iterator<'a> = NibbleIterator<Bytes<'a>>;
+    impl TreePath for MyNodePath {
+        type Iterator<'a> = NibbleIterator<Bytes<'a>>;
 
-//         fn encode(&self, mut target: impl io::Write) -> io::Result<()> {
-//             target.write_all(self.0.as_bytes())
-//         }
+        fn encode(&self, mut target: impl io::Write) -> io::Result<()> {
+            target.write_all(self.0.as_bytes())
+        }
 
-//         fn encoded_iter(&self) -> Self::Iterator<'_> {
-//             NibbleIterator::new(self.0.bytes())
-//         }
-//     }
+        fn encoded_iter(&self) -> Self::Iterator<'_> {
+            NibbleIterator::new(self.0.bytes())
+        }
+    }
 
-//     // Temporary test for bug.
-//     #[test]
-//     fn test() {
-//         let mut pmt = PatriciaMerkleTree::<MyNodePath, (), Keccak256>::new();
+    // Temporary test for bug.
+    #[test]
+    fn test() {
+        let mut pmt = PatriciaMerkleTree::<MyNodePath, [u8; 0], Keccak256>::new();
 
-//         pmt.insert(MyNodePath("ab".to_string()), ());
-//         pmt.insert(MyNodePath("ac".to_string()), ());
-//         pmt.insert(MyNodePath("a".to_string()), ());
-//     }
-// }
+        pmt.insert(MyNodePath("ab".to_string()), []);
+        pmt.insert(MyNodePath("ac".to_string()), []);
+        pmt.insert(MyNodePath("a".to_string()), []);
+    }
+}
