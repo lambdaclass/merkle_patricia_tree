@@ -1,0 +1,38 @@
+name: Rust
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "*" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    steps:
+    - name: Install Rust 1.62.0
+      uses: actions-rs/toolchain@v1
+      with:
+          toolchain: 1.62.0
+          override: true
+          components: rustfmt, clippy
+    - uses: actions/checkout@v3
+    - name: Format
+      run: cargo fmt --all -- --check
+    - name: Install deps
+      run: make deps
+    - name: Build
+      run: make build
+    - name: Run clippy
+      run: make clippy
+    - name: Run tests
+      run: make test
+    - name: Coverage
+      run: make coverage
+    - name: Upload coverage to codecov.io
+      uses: codecov/codecov-action@v3
+      with:
+        fail_ci_if_error:     true
