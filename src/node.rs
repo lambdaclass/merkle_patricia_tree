@@ -88,7 +88,9 @@ where
     ) -> &[u8] {
         match self {
             Node::Branch(branch_node) => branch_node.compute_hash(nodes, values, key_offset),
-            Node::Extension(extension_node) => extension_node.compute_hash(nodes, values, key_offset),
+            Node::Extension(extension_node) => {
+                extension_node.compute_hash(nodes, values, key_offset)
+            }
             Node::Leaf(leaf_node) => leaf_node.compute_hash(nodes, values, key_offset),
         }
     }

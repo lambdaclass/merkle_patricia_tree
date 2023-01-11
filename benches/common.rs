@@ -1,5 +1,5 @@
 use criterion::{black_box, Bencher};
-use patricia_merkle_tree::{NibbleIterator, PatriciaMerkleTree, TreePath};
+use patricia_merkle_tree::{nibble::NibbleIterator, PatriciaMerkleTree, TreePath};
 use rand::{distributions::Uniform, prelude::Distribution, thread_rng, RngCore};
 use sha3::Keccak256;
 use std::{
@@ -26,8 +26,10 @@ impl TreePath for MyNodePath {
 
 pub fn bench_get<const N: usize>() -> impl FnMut(&mut Bencher) {
     // Generate a completely random Patricia Merkle tree.
-    let mut tree = PatriciaMerkleTree::<MyNodePath, i32, Keccak256>::new();
+    let mut tree = PatriciaMerkleTree::<MyNodePath, _, Keccak256>::new();
     let mut all_paths = Vec::with_capacity(N);
+
+    let value = &[0; 32];
 
     let mut rng = thread_rng();
     let distr = Uniform::from(16..=64);
@@ -38,10 +40,7 @@ pub fn bench_get<const N: usize>() -> impl FnMut(&mut Bencher) {
         let mut path = vec![0; path_len];
         rng.fill_bytes(&mut path);
 
-        if tree
-            .insert(MyNodePath(path.clone()), rng.next_u32() as i32)
-            .is_none()
-        {
+        if tree.insert(MyNodePath(path.clone()), value).is_none() {
             all_paths.push(MyNodePath(path));
         }
     }
@@ -63,8 +62,10 @@ pub fn bench_get<const N: usize>() -> impl FnMut(&mut Bencher) {
 
 pub fn bench_insert<const N: usize>() -> impl FnMut(&mut Bencher) {
     // Generate a completely random Patricia Merkle tree.
-    let mut tree = PatriciaMerkleTree::<MyNodePath, i32, Keccak256>::new();
+    let mut tree = PatriciaMerkleTree::<MyNodePath, _, Keccak256>::new();
     let mut all_paths = Vec::with_capacity(N);
+
+    let value = &[0; 32];
 
     let mut rng = thread_rng();
     let distr = Uniform::from(16..=64);
@@ -75,10 +76,7 @@ pub fn bench_insert<const N: usize>() -> impl FnMut(&mut Bencher) {
         let mut path = vec![0; path_len];
         rng.fill_bytes(&mut path);
 
-        if tree
-            .insert(MyNodePath(path.clone()), rng.next_u32() as i32)
-            .is_none()
-        {
+        if tree.insert(MyNodePath(path.clone()), value).is_none() {
             all_paths.push(MyNodePath(path));
         }
     }
@@ -93,7 +91,7 @@ pub fn bench_insert<const N: usize>() -> impl FnMut(&mut Bencher) {
 
         let path = MyNodePath(path);
         if tree.get(&path).is_none() {
-            new_nodes.push((path, rng.next_u32() as i32));
+            new_nodes.push((path, value));
         }
     }
 

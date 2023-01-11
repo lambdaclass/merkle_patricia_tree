@@ -16,7 +16,7 @@ use std::{
 };
 use util::{DigestBuf, Offseted};
 
-mod nibble;
+pub mod nibble;
 mod node;
 mod nodes;
 mod path;
