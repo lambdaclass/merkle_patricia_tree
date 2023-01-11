@@ -9,9 +9,7 @@ use digest::Digest;
 /// A node within the Patricia Merkle tree.
 ///
 /// Notes:
-///   - The empty node allows dropping `Option<Node<...>>` in favor of simply using `Node<...>`.
-///   - The variants `Branch` and `Extension` both have a `Leaf` version, which is used when said
-///     node is also a leaf.
+///   - The `Branch` variant havs an optional value.
 ///   - Extension nodes are only used when followed by a branch, and never with other extensions
 ///     (they are combined) or leaves (they are removed).
 #[derive(Clone, Debug)]
