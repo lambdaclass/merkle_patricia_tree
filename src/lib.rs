@@ -17,7 +17,7 @@ type NodesStorage<P, V, H> = Slab<Node<P, V, H>>;
 type ValuesStorage<P, V> = Slab<(P, V)>;
 
 /// Patricia Merkle Tree implementation.
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct PatriciaMerkleTree<P, V, H>
 where
     P: AsRef<[u8]>,
