@@ -206,8 +206,11 @@ mod test {
 
 
         #[test]
-        fn proptest_get_inserted_multiple(paths in vec(vec(any::<u8>(), 1..5), 1..5), values in vec(vec(any::<u8>(), 1..5), 1..5)) {
+        fn proptest_get_inserted_multiple(paths in hash_set(vec(any::<u8>(), 2..10), 2..10)) {
             let mut tree = PatriciaMerkleTree::<Vec<u8>, Vec<u8>, Keccak256>::new();
+
+            let paths: Vec<Vec<u8>> = paths.into_iter().collect();
+            let values = paths.clone();
 
             for (path, value) in paths.iter().zip(values.iter()) {
                 tree.insert(path.clone(), value.clone());
@@ -235,5 +238,21 @@ mod test {
         let item = tree.get(&vec![16, 0]);
         assert!(item.is_some());
         assert_eq!(item.unwrap(), &vec![0]);
+    }
+
+    #[test]
+    // cc 1b641284519306a352e730a589e07098e76c8a433103b50b3d82422f8d552328 # shrinks to paths = {[1, 0], [0, 0]}
+    fn proptest_regression_1b641284519306a352e730a589e07098e76c8a433103b50b3d82422f8d552328() {
+        let mut tree = PatriciaMerkleTree::<Vec<u8>, Vec<u8>, Keccak256>::new();
+        tree.insert(vec![0, 0], vec![0, 0]);
+        tree.insert(vec![1, 0], vec![1, 0]);
+
+        let item = tree.get(&vec![1, 0]);
+        assert!(item.is_some());
+        assert_eq!(item.unwrap(), &vec![1, 0]);
+
+        let item = tree.get(&vec![0, 0]);
+        assert!(item.is_some());
+        assert_eq!(item.unwrap(), &vec![0, 0]);
     }
 }

@@ -314,8 +314,8 @@ mod test {
 
         let branch_node = pmt_node! { @(nodes, values)
             branch {
-                0 => leaf { vec![0] => vec![0, 1, 2] },
-                1 => leaf { vec![1] => vec![2, 1, 0] },
+                0 => leaf { vec![0x00] => vec![0, 1, 2] },
+                1 => leaf { vec![0x10] => vec![2, 1, 0] },
             }
         };
 
