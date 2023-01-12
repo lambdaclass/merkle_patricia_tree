@@ -1,8 +1,7 @@
 use crate::{
-    nibble::Nibble,
+    nibble::NibbleSlice,
     nodes::{BranchNode, ExtensionNode, LeafNode},
-    util::Offseted,
-    NodesStorage, TreePath, ValuesStorage,
+    NodesStorage, ValuesStorage,
 };
 use digest::Digest;
 
@@ -15,7 +14,7 @@ use digest::Digest;
 #[derive(Clone, Debug)]
 pub enum Node<P, V, H>
 where
-    P: TreePath,
+    P: AsRef<[u8]>,
     V: AsRef<[u8]>,
     H: Digest,
 {
@@ -26,77 +25,71 @@ where
 
 impl<P, V, H> Node<P, V, H>
 where
-    P: TreePath,
+    P: AsRef<[u8]>,
     V: AsRef<[u8]>,
     H: Digest,
 {
-    pub fn get<'a, I>(
+    pub fn get<'a>(
         &'a self,
         nodes: &'a NodesStorage<P, V, H>,
         values: &'a ValuesStorage<P, V>,
-        path_iter: Offseted<I>,
-    ) -> Option<&V>
-    where
-        I: Iterator<Item = Nibble>,
-    {
+        path: NibbleSlice,
+    ) -> Option<&V> {
         match self {
-            Node::Branch(branch_node) => branch_node.get(nodes, values, path_iter),
-            Node::Extension(extension_node) => extension_node.get(nodes, values, path_iter),
-            Node::Leaf(leaf_node) => leaf_node.get(nodes, values, path_iter),
+            Node::Branch(branch_node) => branch_node.get(nodes, values, path),
+            Node::Extension(extension_node) => extension_node.get(nodes, values, path),
+            Node::Leaf(leaf_node) => leaf_node.get(nodes, values, path),
         }
     }
 
-    pub fn insert<I>(
+    pub fn insert(
         self,
         nodes: &mut NodesStorage<P, V, H>,
         values: &mut ValuesStorage<P, V>,
-        path_iter: Offseted<I>,
-    ) -> (Self, InsertAction)
-    where
-        I: Iterator<Item = Nibble>,
-    {
+        path: NibbleSlice,
+    ) -> (Self, InsertAction) {
         match self {
-            Node::Branch(branch_node) => branch_node.insert(nodes, values, path_iter),
-            Node::Extension(extension_node) => extension_node.insert(nodes, values, path_iter),
-            Node::Leaf(leaf_node) => leaf_node.insert(nodes, values, path_iter),
+            Node::Branch(branch_node) => branch_node.insert(nodes, values, path),
+            Node::Extension(extension_node) => extension_node.insert(nodes, values, path),
+            Node::Leaf(leaf_node) => leaf_node.insert(nodes, values, path),
         }
     }
 
-    pub fn remove<I>(
-        self,
-        nodes: &mut NodesStorage<P, V, H>,
-        values: &mut ValuesStorage<P, V>,
-        path_iter: Offseted<I>,
-    ) -> (Option<Self>, Option<V>)
-    where
-        I: Iterator<Item = Nibble>,
-    {
-        match self {
-            Node::Branch(branch_node) => branch_node.remove(nodes, values, path_iter),
-            Node::Extension(extension_node) => extension_node.remove(nodes, values, path_iter),
-            Node::Leaf(leaf_node) => leaf_node.remove(nodes, values, path_iter),
-        }
-    }
+    // pub fn remove<I>(
+    //     self,
+    //     nodes: &mut NodesStorage<P, V, H>,
+    //     values: &mut ValuesStorage<P, V>,
+    //     path_iter: Offseted<I>,
+    // ) -> (Option<Self>, Option<V>)
+    // where
+    //     I: Iterator<Item = Nibble>,
+    // {
+    //     match self {
+    //         Node::Branch(branch_node) => branch_node.remove(nodes, values, path_iter),
+    //         Node::Extension(extension_node) => extension_node.remove(nodes, values, path_iter),
+    //         Node::Leaf(leaf_node) => leaf_node.remove(nodes, values, path_iter),
+    //     }
+    // }
 
-    pub fn compute_hash(
-        &mut self,
-        nodes: &mut NodesStorage<P, V, H>,
-        values: &ValuesStorage<P, V>,
-        key_offset: usize,
-    ) -> &[u8] {
-        match self {
-            Node::Branch(branch_node) => branch_node.compute_hash(nodes, values, key_offset),
-            Node::Extension(extension_node) => {
-                extension_node.compute_hash(nodes, values, key_offset)
-            }
-            Node::Leaf(leaf_node) => leaf_node.compute_hash(nodes, values, key_offset),
-        }
-    }
+    // pub fn compute_hash(
+    //     &mut self,
+    //     nodes: &mut NodesStorage<P, V, H>,
+    //     values: &ValuesStorage<P, V>,
+    //     key_offset: usize,
+    // ) -> &[u8] {
+    //     match self {
+    //         Node::Branch(branch_node) => branch_node.compute_hash(nodes, values, key_offset),
+    //         Node::Extension(extension_node) => {
+    //             extension_node.compute_hash(nodes, values, key_offset)
+    //         }
+    //         Node::Leaf(leaf_node) => leaf_node.compute_hash(nodes, values, key_offset),
+    //     }
+    // }
 }
 
 impl<P, V, H> From<BranchNode<P, V, H>> for Node<P, V, H>
 where
-    P: TreePath,
+    P: AsRef<[u8]>,
     V: AsRef<[u8]>,
     H: Digest,
 {
@@ -107,7 +100,7 @@ where
 
 impl<P, V, H> From<ExtensionNode<P, V, H>> for Node<P, V, H>
 where
-    P: TreePath,
+    P: AsRef<[u8]>,
     V: AsRef<[u8]>,
     H: Digest,
 {
@@ -118,7 +111,7 @@ where
 
 impl<P, V, H> From<LeafNode<P, V, H>> for Node<P, V, H>
 where
-    P: TreePath,
+    P: AsRef<[u8]>,
     V: AsRef<[u8]>,
     H: Digest,
 {

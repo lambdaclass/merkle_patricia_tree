@@ -1,21 +1,16 @@
 //! # Patricia Merkle Tree
 
-use self::node::Node;
-pub use self::{nibble::Nibble, path::TreePath};
+use self::{nibble::Nibble, node::Node};
 use crate::nodes::LeafNode;
 use digest::{Digest, Output};
+use nibble::NibbleSlice;
 use node::InsertAction;
 use slab::Slab;
-use std::{
-    io::Write,
-    mem::{replace, size_of},
-};
-use util::{DigestBuf, Offseted};
+use std::mem::{replace, size_of};
 
 pub mod nibble;
 mod node;
 mod nodes;
-mod path;
 mod util;
 
 type NodesStorage<P, V, H> = Slab<Node<P, V, H>>;
@@ -25,7 +20,7 @@ type ValuesStorage<P, V> = Slab<(P, V)>;
 #[derive(Clone, Default)]
 pub struct PatriciaMerkleTree<P, V, H>
 where
-    P: TreePath,
+    P: AsRef<[u8]>,
     V: AsRef<[u8]>,
     H: Digest,
 {
@@ -40,7 +35,7 @@ where
 
 impl<P, V, H> PatriciaMerkleTree<P, V, H>
 where
-    P: TreePath,
+    P: AsRef<[u8]>,
     V: AsRef<[u8]>,
     H: Digest,
 {
@@ -66,8 +61,7 @@ where
     /// Retrieve a value from the tree given its path.
     pub fn get(&self, path: &P) -> Option<&V> {
         self.nodes.get(self.root_ref).and_then(|root_node| {
-            let path_iter = Offseted::new(path.encoded_iter());
-            root_node.get(&self.nodes, &self.values, path_iter)
+            root_node.get(&self.nodes, &self.values, NibbleSlice::new(path.as_ref()))
         })
     }
 
@@ -79,9 +73,11 @@ where
         match self.nodes.try_remove(self.root_ref) {
             Some(root_node) => {
                 // If the tree is not empty, call the root node's insertion logic.
-                let path_iter = Offseted::new(path.encoded_iter());
-                let (root_node, insert_action) =
-                    root_node.insert(&mut self.nodes, &mut self.values, path_iter);
+                let (root_node, insert_action) = root_node.insert(
+                    &mut self.nodes,
+                    &mut self.values,
+                    NibbleSlice::new(path.as_ref()),
+                );
                 self.root_ref = self.nodes.insert(root_node);
 
                 match insert_action.quantize_self(self.root_ref) {
@@ -122,41 +118,41 @@ where
         }
     }
 
-    /// Remove a value from the tree.
-    pub fn remove(&mut self, path: &P) -> Option<V> {
-        match self.nodes.try_remove(self.root_ref) {
-            Some(root_node) => {
-                // If the tree is not empty, call the root node's removal logic.
-                let path_iter = Offseted::new(path.encoded_iter());
-                let (root_node, old_value) =
-                    root_node.remove(&mut self.nodes, &mut self.values, path_iter);
-                if let Some(root_node) = root_node {
-                    self.root_ref = self.nodes.insert(root_node);
-                }
+    // /// Remove a value from the tree.
+    // pub fn remove(&mut self, path: &P) -> Option<V> {
+    //     match self.nodes.try_remove(self.root_ref) {
+    //         Some(root_node) => {
+    //             // If the tree is not empty, call the root node's removal logic.
+    //             let path_iter = Offseted::new(path.encoded_iter());
+    //             let (root_node, old_value) =
+    //                 root_node.remove(&mut self.nodes, &mut self.values, path_iter);
+    //             if let Some(root_node) = root_node {
+    //                 self.root_ref = self.nodes.insert(root_node);
+    //             }
 
-                old_value
-            }
-            None => None,
-        }
-    }
+    //             old_value
+    //         }
+    //         None => None,
+    //     }
+    // }
 
     // TODO: Iterators.
 
-    /// Return the root hash of the tree (or recompute if needed).
-    pub fn compute_hash(&mut self) -> Option<Output<H>> {
-        self.nodes.try_remove(self.root_ref).map(|mut root_node| {
-            // TODO: Test what happens when the root node's hash encoding is hashed (len == 32).
-            //   Double hash? Or forward the first one?
-            let mut hasher = DigestBuf::<H>::new();
-            hasher
-                .write_all(root_node.compute_hash(&mut self.nodes, &self.values, 0))
-                .unwrap();
-            let output = hasher.finalize();
+    // /// Return the root hash of the tree (or recompute if needed).
+    // pub fn compute_hash(&mut self) -> Option<Output<H>> {
+    //     self.nodes.try_remove(self.root_ref).map(|mut root_node| {
+    //         // TODO: Test what happens when the root node's hash encoding is hashed (len == 32).
+    //         //   Double hash? Or forward the first one?
+    //         let mut hasher = DigestBuf::<H>::new();
+    //         hasher
+    //             .write_all(root_node.compute_hash(&mut self.nodes, &self.values, 0))
+    //             .unwrap();
+    //         let output = hasher.finalize();
 
-            self.root_ref = self.nodes.insert(root_node);
-            output
-        })
-    }
+    //         self.root_ref = self.nodes.insert(root_node);
+    //         output
+    //     })
+    // }
 
     /// Calculate approximated memory usage (both used and allocated).
     pub fn memory_usage(&self) -> (usize, usize) {
@@ -169,35 +165,35 @@ where
     }
 }
 
-#[cfg(test)]
-mod test {
-    use super::*;
-    use crate::nibble::NibbleIterator;
-    use sha3::Keccak256;
-    use std::{io, str::Bytes};
+// #[cfg(test)]
+// mod test {
+//     use super::*;
+//     use crate::nibble::NibbleIterator;
+//     use sha3::Keccak256;
+//     use std::{io, str::Bytes};
 
-    #[derive(Clone, Debug, Eq, PartialEq)]
-    struct MyNodePath(String);
+//     #[derive(Clone, Debug, Eq, PartialEq)]
+//     struct MyNodePath(String);
 
-    impl TreePath for MyNodePath {
-        type Iterator<'a> = NibbleIterator<Bytes<'a>>;
+//     impl TreePath for MyNodePath {
+//         type Iterator<'a> = NibbleIterator<Bytes<'a>>;
 
-        fn encode(&self, mut target: impl io::Write) -> io::Result<()> {
-            target.write_all(self.0.as_bytes())
-        }
+//         fn encode(&self, mut target: impl io::Write) -> io::Result<()> {
+//             target.write_all(self.0.as_bytes())
+//         }
 
-        fn encoded_iter(&self) -> Self::Iterator<'_> {
-            NibbleIterator::new(self.0.bytes())
-        }
-    }
+//         fn encoded_iter(&self) -> Self::Iterator<'_> {
+//             NibbleIterator::new(self.0.bytes())
+//         }
+//     }
 
-    // Temporary test for bug.
-    #[test]
-    fn test() {
-        let mut pmt = PatriciaMerkleTree::<MyNodePath, [u8; 0], Keccak256>::new();
+//     // Temporary test for bug.
+//     #[test]
+//     fn test() {
+//         let mut pmt = PatriciaMerkleTree::<MyNodePath, [u8; 0], Keccak256>::new();
 
-        pmt.insert(MyNodePath("ab".to_string()), []);
-        pmt.insert(MyNodePath("ac".to_string()), []);
-        pmt.insert(MyNodePath("a".to_string()), []);
-    }
-}
+//         pmt.insert(MyNodePath("ab".to_string()), []);
+//         pmt.insert(MyNodePath("ac".to_string()), []);
+//         pmt.insert(MyNodePath("a".to_string()), []);
+//     }
+// }

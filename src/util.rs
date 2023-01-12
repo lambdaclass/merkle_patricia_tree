@@ -5,6 +5,8 @@ use std::{
     iter::Peekable,
 };
 
+pub const INVALID_REF: usize = usize::MAX;
+
 pub fn write_slice(value: &[u8], mut target: impl Write) {
     if value.len() <= 55 {
         target.write_all(&[0x80 + value.len() as u8]).unwrap();
