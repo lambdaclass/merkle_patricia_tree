@@ -129,15 +129,6 @@ where
                 }
                 None => (branch_node, InsertAction::InsertSelf),
             }
-            // left_prefix
-            //     .map(|left_prefix| {
-            //         let branch_ref = nodes.insert(branch_node);
-            //         (
-            //             ExtensionNode::new(left_prefix, branch_ref).into(),
-            //             InsertAction::Insert(branch_ref),
-            //         )
-            //     })
-            //     .unwrap_or((branch_node, InsertAction::InsertSelf))
         }
     }
 
