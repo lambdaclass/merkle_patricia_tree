@@ -1,10 +1,8 @@
 use criterion::{black_box, Bencher};
-use patricia_merkle_tree::{PatriciaMerkleTree};
+use patricia_merkle_tree::PatriciaMerkleTree;
 use rand::{distributions::Uniform, prelude::Distribution, thread_rng, RngCore};
 use sha3::Keccak256;
-use std::{
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
 pub fn bench_get<const N: usize>() -> impl FnMut(&mut Bencher) {
     // Generate a completely random Patricia Merkle tree.
@@ -70,7 +68,7 @@ pub fn bench_insert<const N: usize>() -> impl FnMut(&mut Bencher) {
 
         let mut path = vec![0; path_len];
         rng.fill_bytes(&mut path);
-        
+
         if tree.get(&path).is_none() {
             new_nodes.push((path, value));
         }

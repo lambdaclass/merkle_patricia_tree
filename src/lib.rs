@@ -165,9 +165,8 @@ where
 #[cfg(test)]
 mod test {
 
-
-use sha3::Keccak256;
-use crate::*;
+    use crate::*;
+    use sha3::Keccak256;
 
     #[test]
     fn get_inserted() {
