@@ -204,7 +204,7 @@ mod test {
             assert_eq!(item, &value);
         }
 
-        
+
         #[test]
         fn proptest_get_inserted_multiple(paths in vec(vec(any::<u8>(), 1..5), 1..5), values in vec(vec(any::<u8>(), 1..5), 1..5)) {
             let mut tree = PatriciaMerkleTree::<Vec<u8>, Vec<u8>, Keccak256>::new();
