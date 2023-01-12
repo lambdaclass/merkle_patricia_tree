@@ -66,10 +66,7 @@ where
     }
 
     /// Insert a value into the tree.
-    pub fn insert(&mut self, path: P, value: V) -> Option<V>
-    where
-        P: Clone,
-    {
+    pub fn insert(&mut self, path: P, value: V) -> Option<V> {
         match self.nodes.try_remove(self.root_ref) {
             Some(root_node) => {
                 // If the tree is not empty, call the root node's insertion logic.
