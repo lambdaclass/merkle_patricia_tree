@@ -204,7 +204,7 @@ mod test {
             assert_eq!(item, &value);
         }
 
-        /*
+        
         #[test]
         fn proptest_get_inserted_multiple(paths in vec(vec(any::<u8>(), 1..5), 1..5), values in vec(vec(any::<u8>(), 1..5), 1..5)) {
             let mut tree = PatriciaMerkleTree::<Vec<u8>, Vec<u8>, Keccak256>::new();
@@ -219,6 +219,21 @@ mod test {
                 assert_eq!(item.unwrap(), value);
             }
         }
-        */
+    }
+
+    #[test]
+    // cc 27153906dcbc63f2c7af31f8d0f600cd44bddd133d806d251a8a4125fff8b082 # shrinks to paths = [[16], [16, 0]], values = [[0], [0]]
+    fn proptest_regression_27153906dcbc63f2c7af31f8d0f600cd44bddd133d806d251a8a4125fff8b082() {
+        let mut tree = PatriciaMerkleTree::<Vec<u8>, Vec<u8>, Keccak256>::new();
+        tree.insert(vec![16], vec![0]);
+        tree.insert(vec![16, 0], vec![0]);
+
+        let item = tree.get(&vec![16]);
+        assert!(item.is_some());
+        assert_eq!(item.unwrap(), &vec![0]);
+
+        let item = tree.get(&vec![16, 0]);
+        assert!(item.is_some());
+        assert_eq!(item.unwrap(), &vec![0]);
     }
 }
