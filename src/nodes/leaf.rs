@@ -209,7 +209,7 @@ mod test {
 
     #[test]
     fn get_some() {
-        let (nodes, values) = pmt_state!(Vec<u8>);
+        let (nodes, mut values) = pmt_state!(Vec<u8>);
 
         let node = pmt_node! { @(nodes, values)
             leaf { vec![0x12] => vec![0x12, 0x34, 0x56, 0x78] }
@@ -224,7 +224,7 @@ mod test {
 
     #[test]
     fn get_none() {
-        let (nodes, values) = pmt_state!(Vec<u8>);
+        let (nodes, mut values) = pmt_state!(Vec<u8>);
 
         let node = pmt_node! { @(nodes, values)
             leaf { vec![0x12] => vec![0x12, 0x34, 0x56, 0x78] }
