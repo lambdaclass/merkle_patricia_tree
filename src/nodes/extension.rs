@@ -96,7 +96,12 @@ where
                 .zip(path.clone())
                 .take_while(|(a, b)| a == b)
                 .count();
-            assert!(offset < self.prefix.iter().count(), "{:#02x?}, {:#02x?}", self.prefix, path);
+            assert!(
+                offset < self.prefix.iter().count(),
+                "{:#02x?}, {:#02x?}",
+                self.prefix,
+                path
+            );
             let (left_prefix, choice, right_prefix) = self.prefix.split_extract_at(offset);
 
             let left_prefix = (!left_prefix.is_empty()).then_some(left_prefix);
