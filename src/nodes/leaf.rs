@@ -197,7 +197,7 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{pmt_node, pmt_state};
+    use crate::{pmt_node, pmt_state, util::Offseted};
     use sha3::Keccak256;
 
     #[test]
@@ -236,15 +236,14 @@ mod test {
         );
     }
 
-    // #[test]
-    // #[should_panic]
-    // fn get_iits() {
-    //     let nodes = Slab::new();
-    //     let values = Slab::new();
+    #[test]
+    #[should_panic]
+    fn get_inconsistent_internal_tree_structure() {
+        let (nodes, values) = pmt_state!(Vec<u8>);
 
-    //     let path = MyNodePath(vec![Nibble::V0]);
-    //     let node = LeafNode::<MyNodePath, MyNodeValue, Keccak256>::new(0);
+        let path = NibbleSlice::new(&[0xFF]);
+        let node = LeafNode::new(0);
 
-    //     node.get(&nodes, &values, Offseted::new(path.encoded_iter()));
-    // }
+        node.get(&nodes, &values, path);
+    }
 }
