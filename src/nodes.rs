@@ -4,10 +4,13 @@ mod branch;
 mod extension;
 mod leaf;
 
-// #[cfg(test)]
-// #[macro_export]
-// macro_rules! pmt_tree {
-// }
+#[cfg(test)]
+#[macro_export]
+macro_rules! pmt_tree {
+    ( $value:ty ) => {
+        $crate::PatriciaMerkleTree::<Vec<u8>, $value, sha3::Keccak256>::new()
+    };
+}
 
 #[cfg(test)]
 #[macro_export]
