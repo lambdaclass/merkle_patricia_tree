@@ -164,8 +164,9 @@ where
 
 #[cfg(test)]
 mod test {
-
     use crate::*;
+    use proptest::prelude::*;
+    use proptest::collection::{vec, hash_set};
     use sha3::Keccak256;
 
     #[test]
@@ -178,5 +179,47 @@ mod test {
         let first = tree.get(&&b"first"[..]);
         assert!(first.is_some());
         let second = tree.get(&&b"second"[..]);
+        assert!(second.is_some());
     }
+
+    #[test]
+    fn get_inserted_zero() {
+        let mut tree = PatriciaMerkleTree::<&[u8], &[u8], Keccak256>::new();
+
+        tree.insert(&[0x0], b"value");
+
+        let first = tree.get(&&[0x0][..]);
+        assert!(first.is_some());
+    }
+
+    proptest! {
+        #[test]
+        fn proptest_get_inserted(path in vec(any::<u8>(), 1..100), value in vec(any::<u8>(), 1..100)) {
+            let mut tree = PatriciaMerkleTree::<Vec<u8>, Vec<u8>, Keccak256>::new();
+
+            tree.insert(path.clone(), value.clone());
+            let item = tree.get(&path);
+            assert!(item.is_some());
+            let item = item.unwrap();
+            assert_eq!(item, &value);
+        }
+
+        /* 
+        #[test]
+        fn proptest_get_inserted_multiple(paths in vec(vec(any::<u8>(), 1..5), 1..5), values in vec(vec(any::<u8>(), 1..5), 1..5)) {
+            let mut tree = PatriciaMerkleTree::<Vec<u8>, Vec<u8>, Keccak256>::new();
+
+            for (path, value) in paths.iter().zip(values.iter()) {
+                tree.insert(path.clone(), value.clone());
+            }
+
+            for (path, value) in paths.iter().zip(values.iter()) {
+                let item = tree.get(path);
+                assert!(item.is_some());
+                assert_eq!(item.unwrap(), value);
+            }
+        }
+        */
+    }
+
 }
