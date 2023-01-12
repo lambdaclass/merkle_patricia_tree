@@ -59,7 +59,7 @@ where
         mut self,
         nodes: &mut NodesStorage<P, V, H>,
         values: &mut ValuesStorage<P, V>,
-        path: NibbleSlice,
+        mut path: NibbleSlice,
     ) -> (Node<P, V, H>, InsertAction) {
         // [x] leaf { key => value } -> leaf { key => value }
         // [ ] leaf { key => value } -> branch { 0 => leaf { key => value }, 1 => leaf { key => value } }
@@ -118,8 +118,7 @@ where
                             choices[NibbleSlice::new(value_path.as_ref()).nth(offset).unwrap()
                                 as usize] = Some(nodes.insert(self.into()));
                             // TODO: Dedicated method.
-                            choices[NibbleSlice::new(value_path.as_ref()).nth(offset).unwrap()
-                                as usize] = Some(child_ref);
+                            choices[path.next().unwrap() as usize] = Some(child_ref);
                             choices
                         }),
                         InsertAction::Insert(child_ref),
@@ -209,7 +208,7 @@ mod test {
 
     #[test]
     fn get_some() {
-        let (nodes, values) = pmt_state!(Vec<u8>);
+        let (nodes, mut values) = pmt_state!(Vec<u8>);
 
         let node = pmt_node! { @(nodes, values)
             leaf { vec![0x12] => vec![0x12, 0x34, 0x56, 0x78] }
@@ -224,7 +223,7 @@ mod test {
 
     #[test]
     fn get_none() {
-        let (nodes, values) = pmt_state!(Vec<u8>);
+        let (nodes, mut values) = pmt_state!(Vec<u8>);
 
         let node = pmt_node! { @(nodes, values)
             leaf { vec![0x12] => vec![0x12, 0x34, 0x56, 0x78] }
