@@ -162,35 +162,22 @@ where
     }
 }
 
-// #[cfg(test)]
-// mod test {
-//     use super::*;
-//     use crate::nibble::NibbleIterator;
-//     use sha3::Keccak256;
-//     use std::{io, str::Bytes};
+#[cfg(test)]
+mod test {
 
-//     #[derive(Clone, Debug, Eq, PartialEq)]
-//     struct MyNodePath(String);
 
-//     impl TreePath for MyNodePath {
-//         type Iterator<'a> = NibbleIterator<Bytes<'a>>;
+use sha3::Keccak256;
+use crate::*;
 
-//         fn encode(&self, mut target: impl io::Write) -> io::Result<()> {
-//             target.write_all(self.0.as_bytes())
-//         }
+    #[test]
+    fn get_inserted() {
+        let mut tree = PatriciaMerkleTree::<&[u8], &[u8], Keccak256>::new();
 
-//         fn encoded_iter(&self) -> Self::Iterator<'_> {
-//             NibbleIterator::new(self.0.bytes())
-//         }
-//     }
+        tree.insert(b"first", b"value");
+        tree.insert(b"second", b"value");
 
-//     // Temporary test for bug.
-//     #[test]
-//     fn test() {
-//         let mut pmt = PatriciaMerkleTree::<MyNodePath, [u8; 0], Keccak256>::new();
-
-//         pmt.insert(MyNodePath("ab".to_string()), []);
-//         pmt.insert(MyNodePath("ac".to_string()), []);
-//         pmt.insert(MyNodePath("a".to_string()), []);
-//     }
-// }
+        let first = tree.get(&&b"first"[..]);
+        assert!(first.is_some());
+        let second = tree.get(&&b"second"[..]);
+    }
+}
