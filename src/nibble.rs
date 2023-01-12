@@ -153,6 +153,21 @@ impl<'a> NibbleSlice<'a> {
 
         self_slice == othr_slice
     }
+
+    pub fn peek(&self) -> Option<Nibble> {
+        self.0.get(self.1 >> 1).map(|byte| {
+            let byte = if self.1 % 2 != 0 {
+                byte & 0x0F
+            } else {
+                byte >> 4
+            };
+
+            match Nibble::try_from(byte) {
+                Ok(x) => x,
+                Err(_) => unreachable!(),
+            }
+        })
+    }
 }
 
 impl<'a> AsRef<[u8]> for NibbleSlice<'a> {
