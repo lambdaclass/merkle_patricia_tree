@@ -224,18 +224,15 @@ mod test {
 
     #[test]
     fn get_none() {
-        let nodes = Slab::new();
-        let mut values = Slab::new();
+        let (nodes, values) = pmt_state!(Vec<u8>);
 
-        let path = MyNodePath(vec![Nibble::V0]);
-        let value = MyNodeValue::new(42);
+        let node = pmt_node! { @(nodes, values)
+            leaf { vec![0x12] => vec![0x12, 0x34, 0x56, 0x78] }
+        };
 
-        let value_ref = values.insert((path, value));
-        let node = LeafNode::<_, _, Keccak256>::new(value_ref);
-
-        let path = MyNodePath(vec![Nibble::V1]);
         assert_eq!(
-            node.get(&nodes, &values, Offseted::new(path.encoded_iter())),
+            node.get(&nodes, &values, NibbleSlice::new(&[0x34]))
+                .map(Vec::as_slice),
             None,
         );
     }
