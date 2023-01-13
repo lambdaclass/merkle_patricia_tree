@@ -36,17 +36,24 @@ Benchmarks are provided for the following use cases:
 
 Every use case is tested with different tree sizes, ranging from 1k to 1M.
 
-On a macbook pro 2021:
+On a Apple M1 Pro (16gb RAM, macOS 13.1 22C65 arm64):
 ```
-get()/1k         time:   [514.56 ns 514.77 ns 515.08 ns]
-get()/10k        time:   [1.1656 µs 1.1665 µs 1.1673 µs]
-get()/100k       time:   [1.9443 µs 2.0361 µs 2.1377 µs]
-get()/1M         time:   [5.7495 µs 6.7000 µs 7.5563 µs]
-
-insert()/1k      time:   [2.5213 µs 2.5219 µs 2.5224 µs]
-insert()/10k     time:   [2.5764 µs 2.5922 µs 2.6139 µs]
-insert()/100k    time:   [11.518 µs 11.688 µs 11.899 µs]
-insert()/1M      time:   [21.091 µs 21.733 µs 22.631 µs]
+PatriciaMerkleTree::<MyNode, Keccak256>::get()/1k
+                        time:   [40.057 ns 40.098 ns 40.142 ns]
+PatriciaMerkleTree::<MyNode, Keccak256>::get()/10k
+                        time:   [48.751 ns 48.760 ns 48.769 ns]
+PatriciaMerkleTree::<MyNode, Keccak256>::get()/100k
+                        time:   [203.78 ns 223.41 ns 248.22 ns]
+PatriciaMerkleTree::<MyNode, Keccak256>::get()/1M
+                        time:   [361.24 ns 395.14 ns 438.46 ns]
+PatriciaMerkleTree::<MyNode, Keccak256>::insert()/1k
+                        time:   [229.73 ns 229.81 ns 229.92 ns]
+PatriciaMerkleTree::<MyNode, Keccak256>::insert()/10k
+                        time:   [1.3474 µs 1.4288 µs 1.5149 µs]
+PatriciaMerkleTree::<MyNode, Keccak256>::insert()/100k
+                        time:   [3.7791 µs 3.8136 µs 3.8600 µs]
+PatriciaMerkleTree::<MyNode, Keccak256>::insert()/1M
+                        time:   [2.2547 µs 2.4548 µs 2.7034 µs]
 ```
 
 ## What is a patricia merke tree
