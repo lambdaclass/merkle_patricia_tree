@@ -27,7 +27,7 @@ pub fn bench_get<const N: usize>() -> impl FnMut(&mut Bencher) {
 
     move |b| {
         let mut path_iter = all_paths.iter().cycle();
-        b.iter(|| black_box(tree.get(&path_iter.next().unwrap())));
+        b.iter(|| black_box(tree.get(path_iter.next().unwrap())));
 
         // let mut path_iter = all_paths.iter().cycle();
         // b.iter_custom(|num_iters| {
