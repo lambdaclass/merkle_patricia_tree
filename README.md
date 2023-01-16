@@ -36,12 +36,12 @@ Benchmarks are provided for the following use cases:
 
 Every use case is tested with different tree sizes, ranging from 1k to 1M.
 
-On a Apple M1 Pro (16gb RAM, macOS 13.1 22C65 arm64) using `Keccak256` as the hash function:
+On a AMD Ryzen 9 5950x 3.4 Ghz with 128 Gb RAM using `Keccak256` as the hash function:
 
 | Bench | 1k | 10k | 100k | 1M |
 |----------|------|-----------|-------------|----|
-| get() | `39.676 ns` | `49.164 ns` | `182.31 ns` | `335.71 ns` |
-| insert() | `231.45 ns` | `1.0847 µs` | `4.0569 µs` | `2.1792 µs` |
+| get() | `48.415 ns` | `68.848 ns` | `108.01 ns` | `238.90 ns` |
+| insert() | `279.86 ns` | `338.32 ns` | `825.42 ns` | `18.284 µs` |
 
 Where `MyNode` is a path wrapper around a `Vec<u8>`
 
