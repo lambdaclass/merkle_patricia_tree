@@ -72,6 +72,10 @@ impl<'a> NibbleSlice<'a> {
         }
     }
 
+    pub fn offset(&self) -> usize {
+        self.offset
+    }
+
     pub fn split_to_vec(&self, offset: usize) -> NibbleVec {
         NibbleVec {
             data: SmallVec::from_slice(

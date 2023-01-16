@@ -87,45 +87,47 @@ where
             let mut path_branch = path.clone();
             path_branch.offset_add(offset);
 
-            let (branch_node, mut insert_action) =
-                if offset == 2 * path.as_ref().len() {
-                    (
-                        BranchNode::new({
-                            let mut choices = [None; 16];
-                            // TODO: Dedicated method.
-                            choices[NibbleSlice::new(value_path.as_ref()).nth(offset).unwrap()
-                                as usize] = Some(nodes.insert(self.into()));
-                            choices
-                        }),
-                        InsertAction::InsertSelf,
-                    )
-                } else if offset == 2 * value_path.as_ref().len() {
-                    let child_ref = nodes.insert(LeafNode::new(INVALID_REF).into());
-                    let mut branch_node = BranchNode::new({
+            let absolute_offset = path_branch.offset();
+            let (branch_node, mut insert_action) = if offset == 2 * path.as_ref().len() {
+                (
+                    BranchNode::new({
                         let mut choices = [None; 16];
+                        // TODO: Dedicated method.
+                        choices[NibbleSlice::new(value_path.as_ref())
+                            .nth(absolute_offset)
+                            .unwrap() as usize] = Some(nodes.insert(self.into()));
+                        choices
+                    }),
+                    InsertAction::InsertSelf,
+                )
+            } else if offset == 2 * value_path.as_ref().len() {
+                let child_ref = nodes.insert(LeafNode::new(INVALID_REF).into());
+                let mut branch_node = BranchNode::new({
+                    let mut choices = [None; 16];
+                    // TODO: Dedicated method.
+                    choices[path_branch.next().unwrap() as usize] = Some(child_ref);
+                    choices
+                });
+                branch_node.update_value_ref(Some(self.value_ref));
+
+                (branch_node, InsertAction::Insert(child_ref))
+            } else {
+                let child_ref = nodes.insert(LeafNode::new(INVALID_REF).into());
+
+                (
+                    BranchNode::new({
+                        let mut choices = [None; 16];
+                        // TODO: Dedicated method.
+                        choices
+                            [NibbleSlice::new(value_path.as_ref()).nth(absolute_offset).unwrap() as usize] =
+                            Some(nodes.insert(self.into()));
                         // TODO: Dedicated method.
                         choices[path_branch.next().unwrap() as usize] = Some(child_ref);
                         choices
-                    });
-                    branch_node.update_value_ref(Some(self.value_ref));
-
-                    (branch_node, InsertAction::Insert(child_ref))
-                } else {
-                    let child_ref = nodes.insert(LeafNode::new(INVALID_REF).into());
-
-                    (
-                        BranchNode::new({
-                            let mut choices = [None; 16];
-                            // TODO: Dedicated method.
-                            choices[NibbleSlice::new(value_path.as_ref()).nth(offset).unwrap()
-                                as usize] = Some(nodes.insert(self.into()));
-                            // TODO: Dedicated method.
-                            choices[path_branch.next().unwrap() as usize] = Some(child_ref);
-                            choices
-                        }),
-                        InsertAction::Insert(child_ref),
-                    )
-                };
+                    }),
+                    InsertAction::Insert(child_ref),
+                )
+            };
 
             let final_node = if offset != 0 {
                 let branch_ref = nodes.insert(branch_node.into());
