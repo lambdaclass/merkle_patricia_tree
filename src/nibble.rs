@@ -225,6 +225,26 @@ impl NibbleVec {
         }
     }
 
+    pub fn from_nibbles(data_iter: impl Iterator<Item = Nibble>) -> Self {
+        let mut last_is_half = false;
+        let mut data = SmallVec::new();
+        for nibble in data_iter {
+            if !last_is_half {
+                data.push((nibble as u8) << 4);
+            } else {
+                *data.last_mut().unwrap() |= nibble as u8;
+            }
+
+            last_is_half = !last_is_half;
+        }
+
+        Self {
+            data,
+            first_is_half: false,
+            last_is_half,
+        }
+    }
+
     pub fn is_empty(&self) -> bool {
         self.data.is_empty()
     }

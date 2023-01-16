@@ -167,155 +167,83 @@ where
     }
 }
 
-// #[cfg(test)]
-// mod test {
-//     use super::*;
-//     use sha3::Keccak256;
-//     use slab::Slab;
-//     use std::{iter::Copied, slice::Iter};
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::{pmt_node, pmt_state};
+    use sha3::Keccak256;
 
-//     #[derive(Clone, Debug, Eq, PartialEq)]
-//     struct MyNodePath(Vec<Nibble>);
+    #[test]
+    fn new() {
+        let node = ExtensionNode::<Vec<u8>, Vec<u8>, Keccak256>::new(NibbleVec::new(), 12);
 
-//     impl TreePath for MyNodePath {
-//         type Iterator<'a> = Copied<Iter<'a, Nibble>>;
+        assert_eq!(node.prefix.iter().count(), 0);
+        assert_eq!(node.child_ref, 12);
+    }
 
-//         fn encode(&self, mut target: impl std::io::Write) -> std::io::Result<()> {
-//             let mut iter = self.0.iter().copied().peekable();
-//             if self.0.len() % 2 == 1 {
-//                 target.write_all(&[iter.next().unwrap() as u8])?;
-//             }
+    #[test]
+    fn get_some() {
+        let (mut nodes, mut values) = pmt_state!(Vec<u8>);
 
-//             while iter.peek().is_some() {
-//                 let a = iter.next().unwrap() as u8;
-//                 let b = iter.next().unwrap() as u8;
+        let node = pmt_node! { @(nodes, values)
+            extension { [0], branch {
+                0 => leaf { vec![0x00] => vec![0x12, 0x34, 0x56, 0x78] },
+                1 => leaf { vec![0x01] => vec![0x34, 0x56, 0x78, 0x9A] },
+            } }
+        };
 
-//                 target.write_all(&[(a << 4) | b])?;
-//             }
+        assert_eq!(
+            node.get(&nodes, &values, NibbleSlice::new(&[0x00]))
+                .map(Vec::as_slice),
+            Some([0x12, 0x34, 0x56, 0x78].as_slice()),
+        );
+        assert_eq!(
+            node.get(&nodes, &values, NibbleSlice::new(&[0x01]))
+                .map(Vec::as_slice),
+            Some([0x34, 0x56, 0x78, 0x9A].as_slice()),
+        );
+    }
 
-//             Ok(())
-//         }
+    #[test]
+    fn get_none() {
+        let (mut nodes, mut values) = pmt_state!(Vec<u8>);
 
-//         fn encoded_iter(&self) -> Self::Iterator<'_> {
-//             self.0.iter().copied()
-//         }
-//     }
+        let node = pmt_node! { @(nodes, values)
+            extension { [0], branch {
+                0 => leaf { vec![0x00] => vec![0x12, 0x34, 0x56, 0x78] },
+                1 => leaf { vec![0x01] => vec![0x34, 0x56, 0x78, 0x9A] },
+            } }
+        };
 
-//     #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-//     struct MyNodeValue([u8; 4]);
+        assert_eq!(
+            node.get(&nodes, &values, NibbleSlice::new(&[0x02]))
+                .map(Vec::as_slice),
+            None,
+        );
+    }
 
-//     impl MyNodeValue {
-//         pub fn new(value: i32) -> Self {
-//             Self(value.to_be_bytes())
-//         }
-//     }
+    #[test]
+    fn insert_passthrough() {
+        todo!()
+    }
 
-//     impl AsRef<[u8]> for MyNodeValue {
-//         fn as_ref(&self) -> &[u8] {
-//             &self.0
-//         }
-//     }
+    #[test]
+    fn insert_branch() {
+        todo!()
+    }
 
-//     #[test]
-//     fn new() {
-//         let node = ExtensionNode::<MyNodePath, MyNodeValue, Keccak256>::new(
-//             [Nibble::V0, Nibble::V1, Nibble::V2].as_slice(),
-//             12,
-//         );
+    #[test]
+    fn insert_branch_extension() {
+        todo!()
+    }
 
-//         assert_eq!(
-//             node.prefix.as_slice(),
-//             [Nibble::V0, Nibble::V1, Nibble::V2].as_slice(),
-//         );
-//         assert_eq!(node.child_ref, 12);
-//     }
+    #[test]
+    fn insert_extension_branch() {
+        todo!()
+    }
 
-//     #[test]
-//     fn get_some() {
-//         let mut nodes = Slab::new();
-//         let mut values = Slab::new();
-
-//         let path = MyNodePath(vec![Nibble::V0]);
-//         let value = MyNodeValue::new(42);
-
-//         let value_ref = values.insert((path.clone(), value));
-//         let child_node = LeafNode::<MyNodePath, MyNodeValue, Keccak256>::new(value_ref);
-//         let child_ref = nodes.insert(child_node.into());
-
-//         let node = ExtensionNode::<_, _, Keccak256>::new(
-//             [path.encoded_iter().next().unwrap()].as_slice(),
-//             child_ref,
-//         );
-
-//         assert_eq!(
-//             node.get(&nodes, &values, Offseted::new(path.encoded_iter())),
-//             Some(&value),
-//         );
-//     }
-
-//     #[test]
-//     fn get_none() {
-//         let mut nodes = Slab::new();
-//         let mut values = Slab::new();
-
-//         let path = MyNodePath(vec![Nibble::V0]);
-//         let value = MyNodeValue::new(42);
-
-//         let value_ref = values.insert((path.clone(), value));
-//         let child_node = LeafNode::<MyNodePath, MyNodeValue, Keccak256>::new(value_ref);
-//         let child_ref = nodes.insert(child_node.into());
-
-//         let node = ExtensionNode::<_, _, Keccak256>::new(
-//             [path.encoded_iter().next().unwrap()].as_slice(),
-//             child_ref,
-//         );
-
-//         let path = MyNodePath(vec![Nibble::V1]);
-//         assert_eq!(
-//             node.get(
-//                 &nodes,
-//                 &values,
-//                 Offseted::new(path.encoded_iter().peekable()),
-//             ),
-//             None,
-//         );
-//     }
-
-//     #[test]
-//     #[should_panic]
-//     fn get_iits() {
-//         let nodes = Slab::new();
-//         let values = Slab::new();
-
-//         let path = MyNodePath(vec![Nibble::V0]);
-//         let node = ExtensionNode::<MyNodePath, MyNodeValue, Keccak256>::new(
-//             [path.encoded_iter().next().unwrap()].as_slice(),
-//             1234,
-//         );
-
-//         node.get(
-//             &nodes,
-//             &values,
-//             Offseted::new(path.encoded_iter().peekable()),
-//         );
-//     }
-
-//     // Test for bug (.next() -> .peek(), l.78).
-//     #[test]
-//     fn test() {
-//         let mut nodes = Slab::new();
-//         let mut values = Slab::new();
-
-//         // let path = MyNodePath("\x00".to_string());
-//         let extension_node =
-//             ExtensionNode::<MyNodePath, MyNodeValue, Keccak256>::new([Nibble::V0].as_slice(), 0);
-
-//         let path = MyNodePath(vec![Nibble::V1]);
-//         // let leaf_node = LeafNode::new(0);
-
-//         println!(
-//             "{:#?}",
-//             extension_node.insert(&mut nodes, &mut values, Offseted::new(path.encoded_iter()))
-//         );
-//     }
-// }
+    #[test]
+    fn insert_extension_branch_extension() {
+        todo!()
+    }
+}
