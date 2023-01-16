@@ -2,8 +2,8 @@ use super::{BranchNode, ExtensionNode};
 use crate::{
     nibble::NibbleSlice,
     node::{InsertAction, Node},
-    util::{encode_path, write_list, write_slice, DigestBuf, INVALID_REF},
-    NodesStorage, ValuesStorage,
+    util::{encode_path, write_list, write_slice, DigestBuf},
+    NodeRef, NodesStorage, ValueRef, ValuesStorage,
 };
 use digest::{Digest, Output};
 use std::{io::Cursor, marker::PhantomData};
@@ -15,7 +15,7 @@ where
     V: AsRef<[u8]>,
     H: Digest,
 {
-    value_ref: usize,
+    value_ref: ValueRef,
 
     hash: (usize, Output<H>),
     phantom: PhantomData<(P, V, H)>,
@@ -27,7 +27,7 @@ where
     V: AsRef<[u8]>,
     H: Digest,
 {
-    pub fn new(value_ref: usize) -> Self {
+    pub(crate) fn new(value_ref: ValueRef) -> Self {
         Self {
             value_ref,
             hash: (0, Default::default()),
@@ -35,7 +35,7 @@ where
         }
     }
 
-    pub fn update_value_ref(&mut self, new_value_ref: usize) {
+    pub(crate) fn update_value_ref(&mut self, new_value_ref: ValueRef) {
         self.value_ref = new_value_ref;
     }
 
@@ -49,13 +49,13 @@ where
         // Otherwise, no value is present.
 
         let (value_path, value) = values
-            .get(self.value_ref)
+            .get(self.value_ref.0)
             .expect("inconsistent internal tree structure");
 
         path.cmp_rest(value_path.as_ref()).then_some(value)
     }
 
-    pub fn insert(
+    pub(crate) fn insert(
         mut self,
         nodes: &mut NodesStorage<P, V, H>,
         values: &mut ValuesStorage<P, V>,
@@ -71,7 +71,7 @@ where
         self.hash.0 = 0;
 
         let (value_path, _) = values
-            .get(self.value_ref)
+            .get(self.value_ref.0)
             .expect("inconsistent internal tree structure");
 
         if path.cmp_rest(value_path.as_ref()) {
@@ -95,42 +95,42 @@ where
                         // TODO: Dedicated method.
                         choices[NibbleSlice::new(value_path.as_ref())
                             .nth(absolute_offset)
-                            .unwrap() as usize] = Some(nodes.insert(self.into()));
+                            .unwrap() as usize] = Some(NodeRef(nodes.insert(self.into())));
                         choices
                     }),
                     InsertAction::InsertSelf,
                 )
             } else if offset == 2 * value_path.as_ref().len() {
-                let child_ref = nodes.insert(LeafNode::new(INVALID_REF).into());
+                let child_ref = nodes.insert(LeafNode::new(Default::default()).into());
                 let mut branch_node = BranchNode::new({
                     let mut choices = [None; 16];
                     // TODO: Dedicated method.
-                    choices[path_branch.next().unwrap() as usize] = Some(child_ref);
+                    choices[path_branch.next().unwrap() as usize] = Some(NodeRef(child_ref));
                     choices
                 });
                 branch_node.update_value_ref(Some(self.value_ref));
 
-                (branch_node, InsertAction::Insert(child_ref))
+                (branch_node, InsertAction::Insert(NodeRef(child_ref)))
             } else {
-                let child_ref = nodes.insert(LeafNode::new(INVALID_REF).into());
+                let child_ref = nodes.insert(LeafNode::new(Default::default()).into());
 
                 (
                     BranchNode::new({
                         let mut choices = [None; 16];
                         // TODO: Dedicated method.
-                        choices
-                            [NibbleSlice::new(value_path.as_ref()).nth(absolute_offset).unwrap() as usize] =
-                            Some(nodes.insert(self.into()));
+                        choices[NibbleSlice::new(value_path.as_ref())
+                            .nth(absolute_offset)
+                            .unwrap() as usize] = Some(NodeRef(nodes.insert(self.into())));
                         // TODO: Dedicated method.
-                        choices[path_branch.next().unwrap() as usize] = Some(child_ref);
+                        choices[path_branch.next().unwrap() as usize] = Some(NodeRef(child_ref));
                         choices
                     }),
-                    InsertAction::Insert(child_ref),
+                    InsertAction::Insert(NodeRef(child_ref)),
                 )
             };
 
             let final_node = if offset != 0 {
-                let branch_ref = nodes.insert(branch_node.into());
+                let branch_ref = NodeRef(nodes.insert(branch_node.into()));
                 insert_action = insert_action.quantize_self(branch_ref);
 
                 ExtensionNode::new(path.split_to_vec(offset), branch_ref).into()
@@ -150,7 +150,7 @@ where
     ) -> &[u8] {
         if self.hash.0 == 0 {
             let (key, value) = values
-                .get(self.value_ref)
+                .get(self.value_ref.0)
                 .expect("inconsistent internal tree structure");
 
             let mut digest_buf = DigestBuf::<H>::new();
@@ -178,13 +178,13 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{pmt_node, pmt_state};
+    use crate::{pmt_node, pmt_state, util::INVALID_REF};
     use sha3::Keccak256;
 
     #[test]
     fn new() {
-        let node = LeafNode::<Vec<u8>, Vec<u8>, Keccak256>::new(0);
-        assert_eq!(node.value_ref, 0);
+        let node = LeafNode::<Vec<u8>, Vec<u8>, Keccak256>::new(Default::default());
+        assert_eq!(node.value_ref, ValueRef(INVALID_REF));
     }
 
     #[test]
@@ -231,9 +231,9 @@ mod test {
             _ => panic!("expected a leaf node"),
         };
 
-        assert_eq!(node.value_ref, 0);
+        assert_eq!(node.value_ref, ValueRef(0));
         assert_eq!(node.hash.0, 0);
-        assert_eq!(insert_action, InsertAction::Replace(0));
+        assert_eq!(insert_action, InsertAction::Replace(ValueRef(0)));
     }
 
     #[test]
@@ -251,7 +251,7 @@ mod test {
         };
 
         // TODO: Check branch.
-        assert_eq!(insert_action, InsertAction::Insert(0));
+        assert_eq!(insert_action, InsertAction::Insert(NodeRef(0)));
     }
 
     #[test]
@@ -269,7 +269,7 @@ mod test {
         };
 
         // TODO: Check extension (and child branch).
-        assert_eq!(insert_action, InsertAction::Insert(0));
+        assert_eq!(insert_action, InsertAction::Insert(NodeRef(0)));
     }
 
     #[test]
@@ -288,7 +288,7 @@ mod test {
         };
 
         // TODO: Check extension (and children).
-        assert_eq!(insert_action, InsertAction::Insert(0));
+        assert_eq!(insert_action, InsertAction::Insert(NodeRef(0)));
     }
 
     #[test]
@@ -306,7 +306,7 @@ mod test {
         };
 
         // TODO: Check extension (and children).
-        assert_eq!(insert_action, InsertAction::Insert(1));
+        assert_eq!(insert_action, InsertAction::Insert(NodeRef(1)));
     }
 
     // An insertion that returns branch [value=(x)] -> leaf (y) is not possible because of the key

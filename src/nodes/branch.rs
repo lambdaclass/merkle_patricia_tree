@@ -2,8 +2,8 @@ use super::LeafNode;
 use crate::{
     nibble::NibbleSlice,
     node::{InsertAction, Node},
-    util::{write_list, write_slice, DigestBuf, INVALID_REF},
-    NodesStorage, ValuesStorage,
+    util::{write_list, write_slice, DigestBuf},
+    NodeRef, NodesStorage, ValueRef, ValuesStorage,
 };
 use digest::{Digest, Output};
 use std::{io::Cursor, marker::PhantomData};
@@ -16,8 +16,8 @@ where
     H: Digest,
 {
     // The node zero is always the root, which cannot be a child.
-    choices: [Option<usize>; 16],
-    value_ref: Option<usize>,
+    choices: [Option<NodeRef>; 16],
+    value_ref: Option<ValueRef>,
 
     hash: (usize, Output<H>),
     phantom: PhantomData<(P, V, H)>,
@@ -29,7 +29,7 @@ where
     V: AsRef<[u8]>,
     H: Digest,
 {
-    pub fn new(choices: [Option<usize>; 16]) -> Self {
+    pub(crate) fn new(choices: [Option<NodeRef>; 16]) -> Self {
         Self {
             choices,
             value_ref: None,
@@ -38,7 +38,7 @@ where
         }
     }
 
-    pub fn update_value_ref(&mut self, new_value_ref: Option<usize>) {
+    pub(crate) fn update_value_ref(&mut self, new_value_ref: Option<ValueRef>) {
         self.value_ref = new_value_ref;
     }
 
@@ -57,7 +57,7 @@ where
                 // Delegate to children if present.
                 self.choices[choice].and_then(|child_ref| {
                     let child_node = nodes
-                        .get(child_ref)
+                        .get(child_ref.0)
                         .expect("inconsistent internal tree structure");
 
                     child_node.get(nodes, values, path)
@@ -67,7 +67,7 @@ where
                 // Return internal value if present.
                 self.value_ref.as_ref().map(|child_ref| {
                     let (_, value) = values
-                        .get(*child_ref)
+                        .get(child_ref.0)
                         .expect("inconsistent internal tree structure");
 
                     value
@@ -75,7 +75,7 @@ where
             })
     }
 
-    pub fn insert(
+    pub(crate) fn insert(
         mut self,
         nodes: &mut NodesStorage<P, V, H>,
         values: &mut ValuesStorage<P, V>,
@@ -90,24 +90,24 @@ where
             Some(choice) => match &mut self.choices[choice as usize] {
                 Some(choice_ref) => {
                     let child_node = nodes
-                        .try_remove(*choice_ref)
+                        .try_remove(choice_ref.0)
                         .expect("inconsistent internal tree structure");
 
                     let (child_node, insert_action) = child_node.insert(nodes, values, path);
-                    *choice_ref = nodes.insert(child_node);
+                    *choice_ref = NodeRef(nodes.insert(child_node));
 
                     insert_action.quantize_self(*choice_ref)
                 }
                 choice_ref => {
-                    let child_ref = nodes.insert(LeafNode::new(INVALID_REF).into());
-                    *choice_ref = Some(child_ref);
+                    let child_ref = nodes.insert(LeafNode::new(Default::default()).into());
+                    *choice_ref = Some(NodeRef(child_ref));
 
-                    InsertAction::Insert(child_ref)
+                    InsertAction::Insert(NodeRef(child_ref))
                 }
             },
             None => self
                 .value_ref
-                .map(InsertAction::Insert)
+                .map(InsertAction::Replace)
                 .unwrap_or(InsertAction::InsertSelf),
         };
 
@@ -128,7 +128,7 @@ where
                 match choice {
                     Some(child_ref) => {
                         let mut child_node = nodes
-                            .try_remove(*child_ref)
+                            .try_remove(child_ref.0)
                             .expect("inconsistent internal tree structure");
 
                         payload.extend_from_slice(child_node.compute_hash(
@@ -137,7 +137,7 @@ where
                             key_offset + 1,
                         ));
 
-                        *child_ref = nodes.insert(child_node);
+                        *child_ref = NodeRef(nodes.insert(child_node));
                     }
                     None => payload.push(0x80),
                 }
@@ -146,7 +146,7 @@ where
             if let Some(value_ref) = self.value_ref {
                 write_slice(
                     values
-                        .get(value_ref)
+                        .get(value_ref.0)
                         .expect("inconsistent internal tree structure")
                         .1
                         .as_ref(),
@@ -177,8 +177,8 @@ mod test {
         let node = BranchNode::<Vec<u8>, Vec<u8>, Keccak256>::new({
             let mut choices = [None; 16];
 
-            choices[2] = Some(2);
-            choices[5] = Some(5);
+            choices[2] = Some(NodeRef(2));
+            choices[5] = Some(NodeRef(5));
 
             choices
         });
@@ -188,10 +188,10 @@ mod test {
             [
                 None,
                 None,
-                Some(2),
+                Some(NodeRef(2)),
                 None,
                 None,
-                Some(5),
+                Some(NodeRef(5)),
                 None,
                 None,
                 None,
@@ -286,7 +286,7 @@ mod test {
         };
 
         // TODO: Check node and children.
-        assert_eq!(insert_action, InsertAction::Insert(2));
+        assert_eq!(insert_action, InsertAction::Insert(NodeRef(2)));
     }
 
     #[test]
