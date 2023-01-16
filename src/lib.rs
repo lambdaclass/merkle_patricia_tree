@@ -304,4 +304,41 @@ mod test {
         assert!(item.is_some());
         assert_eq!(item.unwrap(), &vec![138, 101, 157]);
     }
+
+    fn insert_vecs(
+        tree: &mut PatriciaMerkleTree<Vec<u8>, Vec<u8>, Keccak256>,
+        vecs: &Vec<Vec<u8>>,
+    ) {
+        for x in vecs {
+            tree.insert(x.clone(), x.clone());
+        }
+    }
+
+    fn check_vecs(tree: &mut PatriciaMerkleTree<Vec<u8>, Vec<u8>, Keccak256>, vecs: &Vec<Vec<u8>>) {
+        for x in vecs {
+            let item = tree.get(&x);
+            assert!(item.is_some());
+            assert_eq!(item.unwrap(), x);
+        }
+    }
+
+    #[test]
+    fn proptest_regression_3a00543dc8638a854e0e97892c72c1afb55362b9a16f7f32f0b88e6c87c77a4d() {
+        let vecs = vec![
+            vec![52, 53, 143, 52, 206, 112],
+            vec![14, 183, 34, 39, 113],
+            vec![55, 5],
+            vec![134, 123, 19],
+            vec![0, 59, 240, 89, 83, 167],
+            vec![22, 41],
+            vec![13, 166, 159, 101, 90, 234, 91],
+            vec![31, 180, 161, 122, 115, 51, 37, 61, 101],
+            vec![208, 192, 4, 12, 163, 254, 129, 206, 109],
+        ];
+
+        let mut tree = PatriciaMerkleTree::<Vec<u8>, Vec<u8>, Keccak256>::new();
+
+        insert_vecs(&mut tree, &vecs);
+        check_vecs(&mut tree, &vecs);
+    }
 }

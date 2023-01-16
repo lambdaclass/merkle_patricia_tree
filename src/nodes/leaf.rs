@@ -118,9 +118,9 @@ where
                     BranchNode::new({
                         let mut choices = [None; 16];
                         // TODO: Dedicated method.
-                        choices
-                            [NibbleSlice::new(value_path.as_ref()).nth(absolute_offset).unwrap() as usize] =
-                            Some(nodes.insert(self.into()));
+                        choices[NibbleSlice::new(value_path.as_ref())
+                            .nth(absolute_offset)
+                            .unwrap() as usize] = Some(nodes.insert(self.into()));
                         // TODO: Dedicated method.
                         choices[path_branch.next().unwrap() as usize] = Some(child_ref);
                         choices
