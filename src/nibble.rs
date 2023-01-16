@@ -208,7 +208,7 @@ impl<'a> Iterator for NibbleSlice<'a> {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct NibbleVec {
     data: SmallVec<[u8; 64]>,
 

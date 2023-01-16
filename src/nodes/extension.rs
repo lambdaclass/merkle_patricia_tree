@@ -170,7 +170,7 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{pmt_node, pmt_state};
+    use crate::{nibble::Nibble, pmt_node, pmt_state};
     use sha3::Keccak256;
 
     #[test]
@@ -224,26 +224,107 @@ mod test {
 
     #[test]
     fn insert_passthrough() {
-        todo!()
+        let (mut nodes, mut values) = pmt_state!(Vec<u8>);
+
+        let node = pmt_node! { @(nodes, values)
+            extension { [0], branch {
+                0 => leaf { vec![0x00] => vec![0x12, 0x34, 0x56, 0x78] },
+                1 => leaf { vec![0x01] => vec![0x34, 0x56, 0x78, 0x9A] },
+            } }
+        };
+
+        let (node, insert_action) = node.insert(&mut nodes, &mut values, NibbleSlice::new(&[0x02]));
+        let node = match node {
+            Node::Extension(x) => x,
+            _ => panic!("expected an extension node"),
+        };
+
+        // TODO: Check children.
+        assert!(node.prefix.iter().eq([Nibble::V0].into_iter()));
+        assert_eq!(insert_action, InsertAction::Insert(2));
     }
 
     #[test]
     fn insert_branch() {
-        todo!()
+        let (mut nodes, mut values) = pmt_state!(Vec<u8>);
+
+        let node = pmt_node! { @(nodes, values)
+            extension { [0], branch {
+                0 => leaf { vec![0x00] => vec![0x12, 0x34, 0x56, 0x78] },
+                1 => leaf { vec![0x01] => vec![0x34, 0x56, 0x78, 0x9A] },
+            } }
+        };
+
+        let (node, insert_action) = node.insert(&mut nodes, &mut values, NibbleSlice::new(&[0x10]));
+        let _ = match node {
+            Node::Branch(x) => x,
+            _ => panic!("expected a branch node"),
+        };
+
+        // TODO: Check node and children.
+        assert_eq!(insert_action, InsertAction::InsertSelf);
     }
 
     #[test]
     fn insert_branch_extension() {
-        todo!()
+        let (mut nodes, mut values) = pmt_state!(Vec<u8>);
+
+        let node = pmt_node! { @(nodes, values)
+            extension { [0, 0], branch {
+                0 => leaf { vec![0x00, 0x00] => vec![0x12, 0x34, 0x56, 0x78] },
+                1 => leaf { vec![0x00, 0x10] => vec![0x34, 0x56, 0x78, 0x9A] },
+            } }
+        };
+
+        let (node, insert_action) = node.insert(&mut nodes, &mut values, NibbleSlice::new(&[0x10]));
+        let _ = match node {
+            Node::Branch(x) => x,
+            _ => panic!("expected a branch node"),
+        };
+
+        // TODO: Check node and children.
+        assert_eq!(insert_action, InsertAction::InsertSelf);
     }
 
     #[test]
     fn insert_extension_branch() {
-        todo!()
+        let (mut nodes, mut values) = pmt_state!(Vec<u8>);
+
+        let node = pmt_node! { @(nodes, values)
+            extension { [0, 0], branch {
+                0 => leaf { vec![0x00, 0x00] => vec![0x12, 0x34, 0x56, 0x78] },
+                1 => leaf { vec![0x00, 0x10] => vec![0x34, 0x56, 0x78, 0x9A] },
+            } }
+        };
+
+        let (node, insert_action) = node.insert(&mut nodes, &mut values, NibbleSlice::new(&[0x01]));
+        let _ = match node {
+            Node::Extension(x) => x,
+            _ => panic!("expected an extension node"),
+        };
+
+        // TODO: Check node and children.
+        assert_eq!(insert_action, InsertAction::Insert(3));
     }
 
     #[test]
     fn insert_extension_branch_extension() {
-        todo!()
+        let (mut nodes, mut values) = pmt_state!(Vec<u8>);
+
+        let node = pmt_node! { @(nodes, values)
+            extension { [0, 0], branch {
+                0 => leaf { vec![0x00, 0x00] => vec![0x12, 0x34, 0x56, 0x78] },
+                1 => leaf { vec![0x00, 0x10] => vec![0x34, 0x56, 0x78, 0x9A] },
+            } }
+        };
+
+        let (node, insert_action) = node.insert(&mut nodes, &mut values, NibbleSlice::new(&[0x01]));
+        let _ = match node {
+            Node::Extension(x) => x,
+            _ => panic!("expected an extension node"),
+        };
+
+        // TODO: Check node and children.
+        assert_eq!(insert_action, InsertAction::Insert(3));
     }
 }
