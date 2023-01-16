@@ -6,7 +6,11 @@ use digest::{Digest, Output};
 use nibble::NibbleSlice;
 use node::InsertAction;
 use slab::Slab;
-use std::mem::{replace, size_of};
+use std::{
+    io::Write,
+    mem::{replace, size_of},
+};
+use util::DigestBuf;
 
 pub mod nibble;
 mod node;
@@ -102,7 +106,7 @@ where
 
                         Some(replace(old_value, value))
                     }
-                    _ => None,
+                    _ => unreachable!(),
                 }
             }
             None => {
@@ -115,21 +119,21 @@ where
         }
     }
 
-    // /// Return the root hash of the tree (or recompute if needed).
-    // pub fn compute_hash(&mut self) -> Option<Output<H>> {
-    //     self.nodes.try_remove(self.root_ref).map(|mut root_node| {
-    //         // TODO: Test what happens when the root node's hash encoding is hashed (len == 32).
-    //         //   Double hash? Or forward the first one?
-    //         let mut hasher = DigestBuf::<H>::new();
-    //         hasher
-    //             .write_all(root_node.compute_hash(&mut self.nodes, &self.values, 0))
-    //             .unwrap();
-    //         let output = hasher.finalize();
+    /// Return the root hash of the tree (or recompute if needed).
+    pub fn compute_hash(&mut self) -> Option<Output<H>> {
+        self.nodes.try_remove(self.root_ref).map(|mut root_node| {
+            // TODO: Test what happens when the root node's hash encoding is hashed (len == 32).
+            //   Double hash? Or forward the first one?
+            let mut hasher = DigestBuf::<H>::new();
+            hasher
+                .write_all(root_node.compute_hash(&mut self.nodes, &self.values, 0))
+                .unwrap();
+            let output = hasher.finalize();
 
-    //         self.root_ref = self.nodes.insert(root_node);
-    //         output
-    //     })
-    // }
+            self.root_ref = self.nodes.insert(root_node);
+            output
+        })
+    }
 
     /// Calculate approximated memory usage (both used and allocated).
     pub fn memory_usage(&self) -> (usize, usize) {

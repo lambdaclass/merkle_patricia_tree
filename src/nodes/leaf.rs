@@ -2,11 +2,11 @@ use super::{BranchNode, ExtensionNode};
 use crate::{
     nibble::NibbleSlice,
     node::{InsertAction, Node},
-    util::INVALID_REF,
+    util::{encode_path, write_list, write_slice, DigestBuf, INVALID_REF},
     NodesStorage, ValuesStorage,
 };
 use digest::{Digest, Output};
-use std::marker::PhantomData;
+use std::{io::Cursor, marker::PhantomData};
 
 #[derive(Clone, Debug)]
 pub struct LeafNode<P, V, H>
@@ -59,7 +59,7 @@ where
         mut self,
         nodes: &mut NodesStorage<P, V, H>,
         values: &mut ValuesStorage<P, V>,
-        mut path: NibbleSlice,
+        path: NibbleSlice,
     ) -> (Node<P, V, H>, InsertAction) {
         // [x] leaf { key => value } -> leaf { key => value }
         // [ ] leaf { key => value } -> branch { 0 => leaf { key => value }, 1 => leaf { key => value } }
@@ -92,25 +92,23 @@ where
                         BranchNode::new({
                             let mut choices = [None; 16];
                             // TODO: Dedicated method.
-                            choices[path_branch.next().unwrap() as usize] =
-                                Some(nodes.insert(self.into()));
+                            choices[NibbleSlice::new(value_path.as_ref()).nth(offset).unwrap()
+                                as usize] = Some(nodes.insert(self.into()));
                             choices
                         }),
                         InsertAction::InsertSelf,
                     )
                 } else if offset == 2 * value_path.as_ref().len() {
                     let child_ref = nodes.insert(LeafNode::new(INVALID_REF).into());
+                    let mut branch_node = BranchNode::new({
+                        let mut choices = [None; 16];
+                        // TODO: Dedicated method.
+                        choices[path_branch.next().unwrap() as usize] = Some(child_ref);
+                        choices
+                    });
+                    branch_node.update_value_ref(Some(self.value_ref));
 
-                    (
-                        BranchNode::new({
-                            let mut choices = [None; 16];
-                            // TODO: Dedicated method.
-                            choices[NibbleSlice::new(value_path.as_ref()).nth(offset).unwrap()
-                                as usize] = Some(child_ref);
-                            choices
-                        }),
-                        InsertAction::Insert(child_ref),
-                    )
+                    (branch_node, InsertAction::Insert(child_ref))
                 } else {
                     let child_ref = nodes.insert(LeafNode::new(INVALID_REF).into());
 
@@ -141,37 +139,37 @@ where
         }
     }
 
-    // pub fn compute_hash(
-    //     &mut self,
-    //     _nodes: &mut NodesStorage<P, V, H>,
-    //     values: &ValuesStorage<P, V>,
-    //     key_offset: usize,
-    // ) -> &[u8] {
-    //     if self.hash.0 == 0 {
-    //         let (key, value) = values
-    //             .get(self.value_ref)
-    //             .expect("inconsistent internal tree structure");
+    pub fn compute_hash(
+        &mut self,
+        _nodes: &mut NodesStorage<P, V, H>,
+        values: &ValuesStorage<P, V>,
+        key_offset: usize,
+    ) -> &[u8] {
+        if self.hash.0 == 0 {
+            let (key, value) = values
+                .get(self.value_ref)
+                .expect("inconsistent internal tree structure");
 
-    //         let mut digest_buf = DigestBuf::<H>::new();
+            let mut digest_buf = DigestBuf::<H>::new();
 
-    //         // Encode key.
-    //         // TODO: Improve performance by avoiding allocations.
-    //         let key: Vec<_> = key.encoded_iter().skip(key_offset).collect();
-    //         let key_buf = encode_path(&key);
+            // Encode key.
+            // TODO: Improve performance by avoiding allocations.
+            let key: Vec<_> = NibbleSlice::new(key.as_ref()).skip(key_offset).collect();
+            let key_buf = encode_path(&key);
 
-    //         let mut payload = Cursor::new(Vec::new());
-    //         write_slice(&key_buf, &mut payload);
+            let mut payload = Cursor::new(Vec::new());
+            write_slice(&key_buf, &mut payload);
 
-    //         // Encode value.
-    //         // TODO: Improve performance by avoiding allocations.
-    //         write_slice(value.as_ref(), &mut payload);
+            // Encode value.
+            // TODO: Improve performance by avoiding allocations.
+            write_slice(value.as_ref(), &mut payload);
 
-    //         write_list(&payload.into_inner(), &mut digest_buf);
-    //         self.hash.0 = digest_buf.extract_or_finalize(&mut self.hash.1);
-    //     }
+            write_list(&payload.into_inner(), &mut digest_buf);
+            self.hash.0 = digest_buf.extract_or_finalize(&mut self.hash.1);
+        }
 
-    //     &self.hash.1[..self.hash.0]
-    // }
+        &self.hash.1[..self.hash.0]
+    }
 }
 
 #[cfg(test)]
