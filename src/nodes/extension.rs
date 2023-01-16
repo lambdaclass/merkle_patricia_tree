@@ -65,17 +65,18 @@ where
         values: &mut ValuesStorage<P, V>,
         mut path: NibbleSlice,
     ) -> (Node<P, V, H>, InsertAction) {
-        // [x] extension { [0], child } -> branch { 0 => child } with_value !
-        // [x] extension { [0], child } -> extension { [0], child }
-
-        // [ ] extension { [0, 1], child } -> branch { 0 => extension { [1], child } } with_value !
-        // [ ] extension { [0, 1], child } -> extension { [0], branch { 1 => child } with_value ! }
-        // [x] extension { [0, 1], child } -> extension { [0, 1], child }
-
-        // [ ] extension { [0, 1, 2], child } -> branch { 0 => extension { [1, 2], child } } with_value !
-        // [ ] extension { [0, 1, 2], child } -> extension { [0], branch { 1 => extension { [2], child } } with_value ! }
-        // [ ] extension { [0, 1, 2], child } -> extension { [0, 1], branch { 2 => child } with_value ! }
-        // [x] extension { [0, 1, 2], child } -> extension { [0, 1, 2], child }
+        // Possible flow paths (there are duplicates between different prefix lengths):
+        //   - [x] extension { [0], child } -> branch { 0 => child } with_value !
+        //   - [x] extension { [0], child } -> extension { [0], child }
+        //
+        //   - [ ] extension { [0, 1], child } -> branch { 0 => extension { [1], child } } with_value !
+        //   - [ ] extension { [0, 1], child } -> extension { [0], branch { 1 => child } with_value ! }
+        //   - [x] extension { [0, 1], child } -> extension { [0, 1], child }
+        //
+        //   - [ ] extension { [0, 1, 2], child } -> branch { 0 => extension { [1, 2], child } } with_value !
+        //   - [ ] extension { [0, 1, 2], child } -> extension { [0], branch { 1 => extension { [2], child } } with_value ! }
+        //   - [ ] extension { [0, 1, 2], child } -> extension { [0, 1], branch { 2 => child } with_value ! }
+        //   - [x] extension { [0, 1, 2], child } -> extension { [0, 1, 2], child }
 
         self.hash.0 = 0;
 
@@ -108,14 +109,14 @@ where
             let left_prefix = (!left_prefix.is_empty()).then_some(left_prefix);
             let right_prefix = (!right_prefix.is_empty()).then_some(right_prefix);
 
-            // TODO: Prefix right node (if any, child is self.child_ref).
+            // Prefix right node (if any, child is self.child_ref).
             let right_prefix_node = right_prefix
                 .map(|right_prefix| {
                     nodes.insert(ExtensionNode::new(right_prefix, self.child_ref).into())
                 })
                 .unwrap_or(self.child_ref);
 
-            // TODO: Branch node (child is prefix right or self.child_ref).
+            // Branch node (child is prefix right or self.child_ref).
             let branch_node = BranchNode::new({
                 let mut choices = [None; 16];
                 choices[choice as usize] = Some(right_prefix_node);
@@ -123,7 +124,7 @@ where
             })
             .into();
 
-            // TODO: Prefix left node (if any, child is branch_node).
+            // Prefix left node (if any, child is branch_node).
             match left_prefix {
                 Some(left_prefix) => {
                     let branch_ref = nodes.insert(branch_node);

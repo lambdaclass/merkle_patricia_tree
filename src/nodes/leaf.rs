@@ -61,11 +61,12 @@ where
         values: &mut ValuesStorage<P, V>,
         path: NibbleSlice,
     ) -> (Node<P, V, H>, InsertAction) {
-        // [x] leaf { key => value } -> leaf { key => value }
-        // [ ] leaf { key => value } -> branch { 0 => leaf { key => value }, 1 => leaf { key => value } }
-        // [ ] leaf { key => value } -> extension { [0], branch { 0 => leaf { key => value }, 1 => leaf { key => value } } }
-        // [ ] leaf { key => value } -> extension { [0], branch { 0 => leaf { key => value } } with_value leaf { key => value } }
-        // [ ] leaf { key => value } -> extension { [0], branch { 0 => leaf { key => value } } with_value leaf { key => value } } // leafs swapped
+        // Possible flow paths:
+        //   - [x] leaf { key => value } -> leaf { key => value }
+        //   - [ ] leaf { key => value } -> branch { 0 => leaf { key => value }, 1 => leaf { key => value } }
+        //   - [ ] leaf { key => value } -> extension { [0], branch { 0 => leaf { key => value }, 1 => leaf { key => value } } }
+        //   - [ ] leaf { key => value } -> extension { [0], branch { 0 => leaf { key => value } } with_value leaf { key => value } }
+        //   - [ ] leaf { key => value } -> extension { [0], branch { 0 => leaf { key => value } } with_value leaf { key => value } } // leafs swapped
 
         self.hash.0 = 0;
 
