@@ -10,7 +10,7 @@ use std::{
     io::Write,
     mem::{replace, size_of},
 };
-use util::DigestBuf;
+use util::{DigestBuf, INVALID_REF};
 
 pub mod nibble;
 mod node;
@@ -19,6 +19,24 @@ mod util;
 
 type NodesStorage<P, V, H> = Slab<Node<P, V, H>>;
 type ValuesStorage<P, V> = Slab<(P, V)>;
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+struct NodeRef(pub usize);
+
+impl Default for NodeRef {
+    fn default() -> Self {
+        Self(INVALID_REF)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+struct ValueRef(pub usize);
+
+impl Default for ValueRef {
+    fn default() -> Self {
+        Self(INVALID_REF)
+    }
+}
 
 /// Patricia Merkle Tree implementation.
 #[derive(Clone, Debug, Default)]
@@ -29,7 +47,7 @@ where
     H: Digest,
 {
     /// Reference to the root node.
-    root_ref: usize,
+    root_ref: NodeRef,
 
     /// Contains all the nodes.
     nodes: NodesStorage<P, V, H>,
@@ -46,7 +64,7 @@ where
     /// Create an empty tree.
     pub fn new() -> Self {
         Self {
-            root_ref: 0,
+            root_ref: NodeRef(0),
             nodes: Slab::new(),
             values: Slab::new(),
         }
@@ -64,14 +82,14 @@ where
 
     /// Retrieve a value from the tree given its path.
     pub fn get(&self, path: &P) -> Option<&V> {
-        self.nodes.get(self.root_ref).and_then(|root_node| {
+        self.nodes.get(self.root_ref.0).and_then(|root_node| {
             root_node.get(&self.nodes, &self.values, NibbleSlice::new(path.as_ref()))
         })
     }
 
     /// Insert a value into the tree.
     pub fn insert(&mut self, path: P, value: V) -> Option<V> {
-        match self.nodes.try_remove(self.root_ref) {
+        match self.nodes.try_remove(self.root_ref.0) {
             Some(root_node) => {
                 // If the tree is not empty, call the root node's insertion logic.
                 let (root_node, insert_action) = root_node.insert(
@@ -79,14 +97,14 @@ where
                     &mut self.values,
                     NibbleSlice::new(path.as_ref()),
                 );
-                self.root_ref = self.nodes.insert(root_node);
+                self.root_ref = NodeRef(self.nodes.insert(root_node));
 
                 match insert_action.quantize_self(self.root_ref) {
                     InsertAction::Insert(node_ref) => {
-                        let value_ref = self.values.insert((path, value));
+                        let value_ref = ValueRef(self.values.insert((path, value)));
                         match self
                             .nodes
-                            .get_mut(node_ref)
+                            .get_mut(node_ref.0)
                             .expect("inconsistent internal tree structure")
                         {
                             Node::Leaf(leaf_node) => leaf_node.update_value_ref(value_ref),
@@ -101,7 +119,7 @@ where
                     InsertAction::Replace(value_ref) => {
                         let (_, old_value) = self
                             .values
-                            .get_mut(value_ref)
+                            .get_mut(value_ref.0)
                             .expect("inconsistent internal tree structure");
 
                         Some(replace(old_value, value))
@@ -111,8 +129,8 @@ where
             }
             None => {
                 // If the tree is empty, just add a leaf.
-                let value_ref = self.values.insert((path, value));
-                self.root_ref = self.nodes.insert(LeafNode::new(value_ref).into());
+                let value_ref = ValueRef(self.values.insert((path, value)));
+                self.root_ref = NodeRef(self.nodes.insert(LeafNode::new(value_ref).into()));
 
                 None
             }
@@ -121,7 +139,7 @@ where
 
     /// Return the root hash of the tree (or recompute if needed).
     pub fn compute_hash(&mut self) -> Option<Output<H>> {
-        self.nodes.try_remove(self.root_ref).map(|mut root_node| {
+        self.nodes.try_remove(self.root_ref.0).map(|mut root_node| {
             // TODO: Test what happens when the root node's hash encoding is hashed (len == 32).
             //   Double hash? Or forward the first one?
             let mut hasher = DigestBuf::<H>::new();
@@ -130,7 +148,7 @@ where
                 .unwrap();
             let output = hasher.finalize();
 
-            self.root_ref = self.nodes.insert(root_node);
+            self.root_ref = NodeRef(self.nodes.insert(root_node));
             output
         })
     }
