@@ -11,7 +11,7 @@ harness = false
 digest = "0.10.6"
 generic-array = "0.14.6"
 slab = "0.4.7"
-smallvec = "1.10.0"
+smallvec = { version = "1.10.0", features = ["const_generics", "union"] }
 
 [dev-dependencies]
 criterion = "0.4.0"

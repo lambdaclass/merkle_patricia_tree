@@ -214,7 +214,7 @@ impl<'a> Iterator for NibbleSlice<'a> {
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct NibbleVec {
-    data: SmallVec<[u8; 64]>,
+    data: SmallVec<[u8; 111]>,
 
     first_is_half: bool,
     last_is_half: bool,
