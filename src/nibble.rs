@@ -59,19 +59,31 @@ impl From<Nibble> for usize {
 }
 
 #[derive(Clone, Debug)]
-pub struct NibbleSlice<'a>(&'a [u8], usize);
+pub struct NibbleSlice<'a> {
+    data: &'a [u8],
+    offset: usize,
+}
 
 impl<'a> NibbleSlice<'a> {
     pub fn new(inner: &'a [u8]) -> Self {
-        Self(inner, 0)
+        Self {
+            data: inner,
+            offset: 0,
+        }
     }
 
     pub fn split_to_vec(&self, offset: usize) -> NibbleVec {
         NibbleVec {
-            data: SmallVec::from_slice(&self.0[self.1 >> 1..(self.1 + offset + 1) >> 1]),
-            first_is_half: self.1 % 2 != 0,
-            last_is_half: (self.1 + offset) % 2 != 0,
+            data: SmallVec::from_slice(
+                &self.data[self.offset >> 1..(self.offset + offset + 1) >> 1],
+            ),
+            first_is_half: self.offset % 2 != 0,
+            last_is_half: (self.offset + offset) % 2 != 0,
         }
+    }
+
+    pub fn offset_add(&mut self, delta: usize) {
+        self.offset += delta;
     }
 
     /// If `prefix` is a prefix of itself (with the correct nibble alignment), move the offset after
@@ -81,19 +93,19 @@ impl<'a> NibbleSlice<'a> {
     pub fn skip_prefix(&mut self, prefix: &NibbleVec) -> bool {
         // Check alignment.
         assert_eq!(
-            (self.1 % 2 != 0),
+            (self.offset % 2 != 0),
             prefix.first_is_half,
             "inconsistent internal tree structure",
         );
 
         // Prefix can only be a prefix if self.len() >= prefix.len()
-        if self.0.len() < prefix.data.len() {
+        if self.data.len() < prefix.data.len() {
             return false;
         }
 
         // Prepare slices.
         let mut prfx_slice = prefix.data.as_slice();
-        let mut self_slice = &self.0[self.1 >> 1..(self.1 >> 1) + prfx_slice.len()];
+        let mut self_slice = &self.data[self.offset >> 1..(self.offset >> 1) + prfx_slice.len()];
 
         // If the prefix is empty, it's always a prefix.
         if prfx_slice.is_empty()
@@ -129,7 +141,7 @@ impl<'a> NibbleSlice<'a> {
         }
 
         // Advance self.
-        self.1 = self.1 + (prefix.data.len() << 1)
+        self.offset = self.offset + (prefix.data.len() << 1)
             - prefix.first_is_half as usize
             - prefix.last_is_half as usize;
 
@@ -139,10 +151,10 @@ impl<'a> NibbleSlice<'a> {
     /// Compare the rest of the data in self with the data in `other` after the offset in self.
     pub fn cmp_rest(&self, other: &[u8]) -> bool {
         // Prepare slices.
-        let mut othr_slice = &other[self.1 >> 1..];
-        let mut self_slice = &self.0[self.1 >> 1..];
+        let mut othr_slice = &other[self.offset >> 1..];
+        let mut self_slice = &self.data[self.offset >> 1..];
 
-        if self.1 % 2 != 0 {
+        if self.offset % 2 != 0 {
             if (othr_slice[0] & 0x0F) != (self_slice[0] & 0x0F) {
                 return false;
             }
@@ -155,8 +167,8 @@ impl<'a> NibbleSlice<'a> {
     }
 
     pub fn peek(&self) -> Option<Nibble> {
-        self.0.get(self.1 >> 1).map(|byte| {
-            let byte = if self.1 % 2 != 0 {
+        self.data.get(self.offset >> 1).map(|byte| {
+            let byte = if self.offset % 2 != 0 {
                 byte & 0x0F
             } else {
                 byte >> 4
@@ -172,7 +184,7 @@ impl<'a> NibbleSlice<'a> {
 
 impl<'a> AsRef<[u8]> for NibbleSlice<'a> {
     fn as_ref(&self) -> &'a [u8] {
-        self.0
+        self.data
     }
 }
 
@@ -180,14 +192,14 @@ impl<'a> Iterator for NibbleSlice<'a> {
     type Item = Nibble;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.get(self.1 >> 1).map(|byte| {
-            let byte = if self.1 % 2 != 0 {
+        self.data.get(self.offset >> 1).map(|byte| {
+            let byte = if self.offset % 2 != 0 {
                 byte & 0x0F
             } else {
                 byte >> 4
             };
 
-            self.1 += 1;
+            self.offset += 1;
             match Nibble::try_from(byte) {
                 Ok(x) => x,
                 Err(_) => unreachable!(),
@@ -382,82 +394,106 @@ mod test {
 
     #[test]
     fn nibble_slice_skip_prefix_success() {
-        let mut slice = NibbleSlice(&[0x12, 0x34, 0x56], 0);
+        let mut slice = NibbleSlice {
+            data: &[0x12, 0x34, 0x56],
+            offset: 0,
+        };
         assert!(slice.skip_prefix(&NibbleVec {
             data: SmallVec::from_slice(&[0x12, 0x34, 0x56]),
             first_is_half: false,
             last_is_half: false,
         }));
-        assert_eq!(slice.1, 6);
+        assert_eq!(slice.offset, 6);
     }
 
     #[test]
     fn nibble_slice_skip_prefix_success_first_half() {
-        let mut slice = NibbleSlice(&[0x12, 0x34, 0x56], 1);
+        let mut slice = NibbleSlice {
+            data: &[0x12, 0x34, 0x56],
+            offset: 1,
+        };
         assert!(slice.skip_prefix(&NibbleVec {
             data: SmallVec::from_slice(&[0x02, 0x34, 0x56]),
             first_is_half: true,
             last_is_half: false,
         }));
-        assert_eq!(slice.1, 6);
+        assert_eq!(slice.offset, 6);
     }
 
     #[test]
     fn nibble_slice_skip_prefix_success_last_half() {
-        let mut slice = NibbleSlice(&[0x12, 0x34, 0x56], 0);
+        let mut slice = NibbleSlice {
+            data: &[0x12, 0x34, 0x56],
+            offset: 0,
+        };
         assert!(slice.skip_prefix(&NibbleVec {
             data: SmallVec::from_slice(&[0x12, 0x34, 0x50]),
             first_is_half: false,
             last_is_half: true,
         }));
-        assert_eq!(slice.1, 5);
+        assert_eq!(slice.offset, 5);
     }
 
     #[test]
     fn nibble_slice_skip_prefix_success_first_last_half() {
-        let mut slice = NibbleSlice(&[0x12, 0x34, 0x56], 1);
+        let mut slice = NibbleSlice {
+            data: &[0x12, 0x34, 0x56],
+            offset: 1,
+        };
         assert!(slice.skip_prefix(&NibbleVec {
             data: SmallVec::from_slice(&[0x02, 0x34, 0x50]),
             first_is_half: true,
             last_is_half: true,
         }));
-        assert_eq!(slice.1, 5);
+        assert_eq!(slice.offset, 5);
     }
 
     #[test]
     fn nibble_slice_skip_prefix_success_empty() {
-        let mut slice = NibbleSlice(&[0x12, 0x34, 0x56], 0);
+        let mut slice = NibbleSlice {
+            data: &[0x12, 0x34, 0x56],
+            offset: 0,
+        };
         assert!(slice.skip_prefix(&NibbleVec {
             data: SmallVec::new(),
             first_is_half: false,
             last_is_half: false
         }),);
-        assert_eq!(slice.1, 0);
+        assert_eq!(slice.offset, 0);
 
-        let mut slice = NibbleSlice(&[0x12, 0x34, 0x56], 1);
+        let mut slice = NibbleSlice {
+            data: &[0x12, 0x34, 0x56],
+            offset: 1,
+        };
         assert!(slice.skip_prefix(&NibbleVec {
             data: SmallVec::from_slice(&[0x00]),
             first_is_half: true,
             last_is_half: true
         }),);
-        assert_eq!(slice.1, 1);
+        assert_eq!(slice.offset, 1);
     }
 
     #[test]
     fn nibble_slice_skip_prefix_failure() {
-        let mut slice = NibbleSlice(&[0x12, 0x34, 0x56], 0);
+        let mut slice = NibbleSlice {
+            data: &[0x12, 0x34, 0x56],
+            offset: 0,
+        };
         assert!(!slice.skip_prefix(&NibbleVec {
             data: SmallVec::from_slice(&[0x21, 0x43, 0x65]),
             first_is_half: false,
             last_is_half: false,
         }));
-        assert_eq!(slice.1, 0);
+        assert_eq!(slice.offset, 0);
     }
 
     #[test]
     #[should_panic]
     fn nibble_slice_skip_prefix_failure_alignment() {
-        let mut slice = NibbleSlice(&[0x12, 0x34, 0x56], 0);
+        let mut slice = NibbleSlice {
+            data: &[0x12, 0x34, 0x56],
+            offset: 0,
+        };
         slice.skip_prefix(&NibbleVec {
             data: SmallVec::from_slice(&[0x12, 0x34, 0x56]),
             first_is_half: true,
@@ -467,46 +503,61 @@ mod test {
 
     #[test]
     fn nibble_slice_cmp_rest_success() {
-        let slice = NibbleSlice(&[0x12, 0x34, 0x56], 0);
+        let slice = NibbleSlice {
+            data: &[0x12, 0x34, 0x56],
+            offset: 0,
+        };
         assert!(slice.cmp_rest(&[0x12, 0x34, 0x56]));
     }
 
     #[test]
     fn nibble_slice_cmp_rest_success_offset() {
-        let slice = NibbleSlice(&[0x12, 0x34, 0x56], 3);
+        let slice = NibbleSlice {
+            data: &[0x12, 0x34, 0x56],
+            offset: 3,
+        };
         assert!(slice.cmp_rest(&[0xFF, 0xF4, 0x56]));
     }
 
     #[test]
     fn nibble_slice_cmp_rest_failure() {
-        let slice = NibbleSlice(&[0x12, 0x34, 0x56], 0);
+        let slice = NibbleSlice {
+            data: &[0x12, 0x34, 0x56],
+            offset: 0,
+        };
         assert!(!slice.cmp_rest(&[0x12, 0xF4, 0x56]));
     }
 
     #[test]
     fn nibble_slice_cmp_rest_failure_offset() {
-        let slice = NibbleSlice(&[0x12, 0x34, 0x56], 3);
+        let slice = NibbleSlice {
+            data: &[0x12, 0x34, 0x56],
+            offset: 3,
+        };
         assert!(!slice.cmp_rest(&[0xFF, 0xF4, 0xF6]));
     }
 
     #[test]
     fn nibble_slice_next() {
-        let mut slice = NibbleSlice(&[0x12, 0x34, 0x56], 0);
-        assert_eq!(slice.1, 0);
+        let mut slice = NibbleSlice {
+            data: &[0x12, 0x34, 0x56],
+            offset: 0,
+        };
+        assert_eq!(slice.offset, 0);
         assert_eq!(slice.next(), Some(Nibble::V1));
-        assert_eq!(slice.1, 1);
+        assert_eq!(slice.offset, 1);
         assert_eq!(slice.next(), Some(Nibble::V2));
-        assert_eq!(slice.1, 2);
+        assert_eq!(slice.offset, 2);
         assert_eq!(slice.next(), Some(Nibble::V3));
-        assert_eq!(slice.1, 3);
+        assert_eq!(slice.offset, 3);
         assert_eq!(slice.next(), Some(Nibble::V4));
-        assert_eq!(slice.1, 4);
+        assert_eq!(slice.offset, 4);
         assert_eq!(slice.next(), Some(Nibble::V5));
-        assert_eq!(slice.1, 5);
+        assert_eq!(slice.offset, 5);
         assert_eq!(slice.next(), Some(Nibble::V6));
-        assert_eq!(slice.1, 6);
+        assert_eq!(slice.offset, 6);
         assert_eq!(slice.next(), None);
-        assert_eq!(slice.1, 6);
+        assert_eq!(slice.offset, 6);
     }
 
     #[test]

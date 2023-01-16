@@ -115,26 +115,6 @@ where
         }
     }
 
-    // /// Remove a value from the tree.
-    // pub fn remove(&mut self, path: &P) -> Option<V> {
-    //     match self.nodes.try_remove(self.root_ref) {
-    //         Some(root_node) => {
-    //             // If the tree is not empty, call the root node's removal logic.
-    //             let path_iter = Offseted::new(path.encoded_iter());
-    //             let (root_node, old_value) =
-    //                 root_node.remove(&mut self.nodes, &mut self.values, path_iter);
-    //             if let Some(root_node) = root_node {
-    //                 self.root_ref = self.nodes.insert(root_node);
-    //             }
-
-    //             old_value
-    //         }
-    //         None => None,
-    //     }
-    // }
-
-    // TODO: Iterators.
-
     // /// Return the root hash of the tree (or recompute if needed).
     // pub fn compute_hash(&mut self) -> Option<Output<H>> {
     //     self.nodes.try_remove(self.root_ref).map(|mut root_node| {
@@ -159,6 +139,18 @@ where
             + size_of::<(P, Output<H>, V)>() * self.values.capacity();
 
         (mem_consumed, mem_reserved)
+    }
+
+    /// Use after a `.clone()` to reserve the capacity the slabs would have if they hadn't been
+    /// cloned.
+    ///
+    /// Note: Used by the benchmark to mimic real conditions.
+    #[doc(hidden)]
+    pub fn reserve_next_power_of_two(&mut self) {
+        self.nodes
+            .reserve(self.nodes.capacity().next_power_of_two());
+        self.values
+            .reserve(self.values.capacity().next_power_of_two());
     }
 }
 
@@ -187,7 +179,6 @@ mod test {
         let mut tree = PatriciaMerkleTree::<&[u8], &[u8], Keccak256>::new();
 
         tree.insert(&[0x0], b"value");
-
         let first = tree.get(&&[0x0][..]);
         assert!(first.is_some());
     }
@@ -254,5 +245,16 @@ mod test {
         let item = tree.get(&vec![0, 0]);
         assert!(item.is_some());
         assert_eq!(item.unwrap(), &vec![0, 0]);
+    }
+
+    #[test]
+    fn test() {
+        let mut tree = PatriciaMerkleTree::<Vec<u8>, Vec<u8>, Keccak256>::new();
+
+        tree.insert(vec![48], vec![0]);
+        tree.insert(vec![49], vec![1]);
+
+        assert_eq!(tree.get(&vec![48]), Some(&vec![0]));
+        assert_eq!(tree.get(&vec![49]), Some(&vec![1]));
     }
 }

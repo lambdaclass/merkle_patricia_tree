@@ -83,47 +83,50 @@ where
                 .take_while(|(a, b)| a == b)
                 .count();
 
-            let (branch_node, mut insert_action) = if offset == path.as_ref().len() {
-                (
-                    BranchNode::new({
-                        let mut choices = [None; 16];
-                        // TODO: Dedicated method.
-                        choices[path.peek().unwrap() as usize] = Some(nodes.insert(self.into()));
-                        choices
-                    }),
-                    InsertAction::InsertSelf,
-                )
-            } else if offset == value_path.as_ref().len() {
-                let child_ref = nodes.insert(LeafNode::new(INVALID_REF).into());
+            let mut path_branch = path.clone();
+            path_branch.offset_add(offset);
 
-                (
-                    BranchNode::new({
-                        let mut choices = [None; 16];
-                        // TODO: Dedicated method.
-                        choices
-                            [NibbleSlice::new(value_path.as_ref()).nth(offset).unwrap() as usize] =
-                            Some(child_ref);
-                        choices
-                    }),
-                    InsertAction::Insert(child_ref),
-                )
-            } else {
-                let child_ref = nodes.insert(LeafNode::new(INVALID_REF).into());
+            let (branch_node, mut insert_action) =
+                if offset == 2 * path.as_ref().len() {
+                    (
+                        BranchNode::new({
+                            let mut choices = [None; 16];
+                            // TODO: Dedicated method.
+                            choices[path_branch.next().unwrap() as usize] =
+                                Some(nodes.insert(self.into()));
+                            choices
+                        }),
+                        InsertAction::InsertSelf,
+                    )
+                } else if offset == 2 * value_path.as_ref().len() {
+                    let child_ref = nodes.insert(LeafNode::new(INVALID_REF).into());
 
-                (
-                    BranchNode::new({
-                        let mut choices = [None; 16];
-                        // TODO: Dedicated method.
-                        choices
-                            [NibbleSlice::new(value_path.as_ref()).nth(offset).unwrap() as usize] =
-                            Some(nodes.insert(self.into()));
-                        // TODO: Dedicated method.
-                        choices[path.next().unwrap() as usize] = Some(child_ref);
-                        choices
-                    }),
-                    InsertAction::Insert(child_ref),
-                )
-            };
+                    (
+                        BranchNode::new({
+                            let mut choices = [None; 16];
+                            // TODO: Dedicated method.
+                            choices[NibbleSlice::new(value_path.as_ref()).nth(offset).unwrap()
+                                as usize] = Some(child_ref);
+                            choices
+                        }),
+                        InsertAction::Insert(child_ref),
+                    )
+                } else {
+                    let child_ref = nodes.insert(LeafNode::new(INVALID_REF).into());
+
+                    (
+                        BranchNode::new({
+                            let mut choices = [None; 16];
+                            // TODO: Dedicated method.
+                            choices[NibbleSlice::new(value_path.as_ref()).nth(offset).unwrap()
+                                as usize] = Some(nodes.insert(self.into()));
+                            // TODO: Dedicated method.
+                            choices[path_branch.next().unwrap() as usize] = Some(child_ref);
+                            choices
+                        }),
+                        InsertAction::Insert(child_ref),
+                    )
+                };
 
             let final_node = if offset != 0 {
                 let branch_ref = nodes.insert(branch_node.into());
@@ -137,29 +140,6 @@ where
             (final_node, insert_action)
         }
     }
-
-    // pub fn remove<I>(
-    //     self,
-    //     _nodes: &mut NodesStorage<P, V, H>,
-    //     values: &mut ValuesStorage<P, V>,
-    //     path_iter: Offseted<I>,
-    // ) -> (Option<Node<P, V, H>>, Option<V>)
-    // where
-    //     I: Iterator<Item = Nibble>,
-    // {
-    //     // Retrieve the value storage to compare paths and return the value if there's a match.
-    //     let (value_path, _) = values
-    //         .get(self.value_ref)
-    //         .expect("inconsistent internal tree structure");
-
-    //     // Compare remaining paths since everything before that should already be equal, then return
-    //     // the value if they match.
-    //     let path_offset = path_iter.offset();
-    //     path_iter
-    //         .eq(value_path.encoded_iter().skip(path_offset))
-    //         .then(|| (None, Some(values.remove(self.value_ref).1)))
-    //         .unwrap_or((Some(self.into()), None))
-    // }
 
     // pub fn compute_hash(
     //     &mut self,
