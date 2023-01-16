@@ -336,7 +336,7 @@ mod test {
 
     fn check_vecs(tree: &mut PatriciaMerkleTree<Vec<u8>, Vec<u8>, Keccak256>, vecs: &Vec<Vec<u8>>) {
         for x in vecs {
-            let item = tree.get(&x);
+            let item = tree.get(x);
             assert!(item.is_some());
             assert_eq!(item.unwrap(), x);
         }
