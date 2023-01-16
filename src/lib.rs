@@ -6,7 +6,11 @@ use digest::{Digest, Output};
 use nibble::NibbleSlice;
 use node::InsertAction;
 use slab::Slab;
-use std::mem::{replace, size_of};
+use std::{
+    io::Write,
+    mem::{replace, size_of},
+};
+use util::DigestBuf;
 
 pub mod nibble;
 mod node;
@@ -102,7 +106,7 @@ where
 
                         Some(replace(old_value, value))
                     }
-                    _ => None,
+                    _ => unreachable!(),
                 }
             }
             None => {
@@ -115,21 +119,21 @@ where
         }
     }
 
-    // /// Return the root hash of the tree (or recompute if needed).
-    // pub fn compute_hash(&mut self) -> Option<Output<H>> {
-    //     self.nodes.try_remove(self.root_ref).map(|mut root_node| {
-    //         // TODO: Test what happens when the root node's hash encoding is hashed (len == 32).
-    //         //   Double hash? Or forward the first one?
-    //         let mut hasher = DigestBuf::<H>::new();
-    //         hasher
-    //             .write_all(root_node.compute_hash(&mut self.nodes, &self.values, 0))
-    //             .unwrap();
-    //         let output = hasher.finalize();
+    /// Return the root hash of the tree (or recompute if needed).
+    pub fn compute_hash(&mut self) -> Option<Output<H>> {
+        self.nodes.try_remove(self.root_ref).map(|mut root_node| {
+            // TODO: Test what happens when the root node's hash encoding is hashed (len == 32).
+            //   Double hash? Or forward the first one?
+            let mut hasher = DigestBuf::<H>::new();
+            hasher
+                .write_all(root_node.compute_hash(&mut self.nodes, &self.values, 0))
+                .unwrap();
+            let output = hasher.finalize();
 
-    //         self.root_ref = self.nodes.insert(root_node);
-    //         output
-    //     })
-    // }
+            self.root_ref = self.nodes.insert(root_node);
+            output
+        })
+    }
 
     /// Calculate approximated memory usage (both used and allocated).
     pub fn memory_usage(&self) -> (usize, usize) {
@@ -151,55 +155,5 @@ where
             .reserve(self.nodes.capacity().next_power_of_two());
         self.values
             .reserve(self.values.capacity().next_power_of_two());
-    }
-}
-
-// #[cfg(test)]
-// mod test {
-//     use super::*;
-//     use crate::nibble::NibbleIterator;
-//     use sha3::Keccak256;
-//     use std::{io, str::Bytes};
-
-//     #[derive(Clone, Debug, Eq, PartialEq)]
-//     struct MyNodePath(String);
-
-//     impl TreePath for MyNodePath {
-//         type Iterator<'a> = NibbleIterator<Bytes<'a>>;
-
-//         fn encode(&self, mut target: impl io::Write) -> io::Result<()> {
-//             target.write_all(self.0.as_bytes())
-//         }
-
-//         fn encoded_iter(&self) -> Self::Iterator<'_> {
-//             NibbleIterator::new(self.0.bytes())
-//         }
-//     }
-
-//     // Temporary test for bug.
-//     #[test]
-//     fn test() {
-//         let mut pmt = PatriciaMerkleTree::<MyNodePath, [u8; 0], Keccak256>::new();
-
-//         pmt.insert(MyNodePath("ab".to_string()), []);
-//         pmt.insert(MyNodePath("ac".to_string()), []);
-//         pmt.insert(MyNodePath("a".to_string()), []);
-//     }
-// }
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use sha3::Keccak256;
-
-    #[test]
-    fn test() {
-        let mut tree = PatriciaMerkleTree::<Vec<u8>, Vec<u8>, Keccak256>::new();
-
-        tree.insert(vec![48], vec![0]);
-        tree.insert(vec![49], vec![1]);
-
-        assert_eq!(tree.get(&vec![48]), Some(&vec![0]));
-        assert_eq!(tree.get(&vec![49]), Some(&vec![1]));
     }
 }

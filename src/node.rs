@@ -55,36 +55,20 @@ where
         }
     }
 
-    // pub fn remove<I>(
-    //     self,
-    //     nodes: &mut NodesStorage<P, V, H>,
-    //     values: &mut ValuesStorage<P, V>,
-    //     path_iter: Offseted<I>,
-    // ) -> (Option<Self>, Option<V>)
-    // where
-    //     I: Iterator<Item = Nibble>,
-    // {
-    //     match self {
-    //         Node::Branch(branch_node) => branch_node.remove(nodes, values, path_iter),
-    //         Node::Extension(extension_node) => extension_node.remove(nodes, values, path_iter),
-    //         Node::Leaf(leaf_node) => leaf_node.remove(nodes, values, path_iter),
-    //     }
-    // }
-
-    // pub fn compute_hash(
-    //     &mut self,
-    //     nodes: &mut NodesStorage<P, V, H>,
-    //     values: &ValuesStorage<P, V>,
-    //     key_offset: usize,
-    // ) -> &[u8] {
-    //     match self {
-    //         Node::Branch(branch_node) => branch_node.compute_hash(nodes, values, key_offset),
-    //         Node::Extension(extension_node) => {
-    //             extension_node.compute_hash(nodes, values, key_offset)
-    //         }
-    //         Node::Leaf(leaf_node) => leaf_node.compute_hash(nodes, values, key_offset),
-    //     }
-    // }
+    pub fn compute_hash(
+        &mut self,
+        nodes: &mut NodesStorage<P, V, H>,
+        values: &ValuesStorage<P, V>,
+        key_offset: usize,
+    ) -> &[u8] {
+        match self {
+            Node::Branch(branch_node) => branch_node.compute_hash(nodes, values, key_offset),
+            Node::Extension(extension_node) => {
+                extension_node.compute_hash(nodes, values, key_offset)
+            }
+            Node::Leaf(leaf_node) => leaf_node.compute_hash(nodes, values, key_offset),
+        }
+    }
 }
 
 impl<P, V, H> From<BranchNode<P, V, H>> for Node<P, V, H>

@@ -2,10 +2,11 @@ use super::BranchNode;
 use crate::{
     nibble::{NibbleSlice, NibbleVec},
     node::{InsertAction, Node},
+    util::{encode_path, write_list, write_slice, DigestBuf},
     NodesStorage, ValuesStorage,
 };
 use digest::{Digest, Output};
-use std::marker::PhantomData;
+use std::{io::Cursor, marker::PhantomData};
 
 #[derive(Clone, Debug)]
 pub struct ExtensionNode<P, V, H>
@@ -137,68 +138,33 @@ where
         }
     }
 
-    // pub fn remove<I>(
-    //     mut self,
-    //     nodes: &mut NodesStorage<P, V, H>,
-    //     values: &mut ValuesStorage<P, V>,
-    //     mut path_iter: Offseted<I>,
-    // ) -> (Option<Node<P, V, H>>, Option<V>)
-    // where
-    //     I: Iterator<Item = Nibble>,
-    // {
-    //     if self
-    //         .prefix
-    //         .iter()
-    //         .copied()
-    //         .eq((&mut path_iter).take(self.prefix.len()))
-    //     {
-    //         let (new_node, old_value) = nodes
-    //             .try_remove(self.child_ref)
-    //             .expect("inconsistent internal tree structure")
-    //             .remove(nodes, values, path_iter);
+    pub fn compute_hash(
+        &mut self,
+        nodes: &mut NodesStorage<P, V, H>,
+        values: &ValuesStorage<P, V>,
+        key_offset: usize,
+    ) -> &[u8] {
+        if self.hash.0 == 0 {
+            let mut payload = Cursor::new(Vec::new());
 
-    //         if old_value.is_some() {
-    //             self.hash.0 = 0; // Mark hash as dirty.
-    //         }
+            let mut digest_buf = DigestBuf::<H>::new();
 
-    //         (
-    //             new_node.map(|new_node| {
-    //                 self.child_ref = nodes.insert(new_node);
-    //                 self.into()
-    //             }),
-    //             old_value,
-    //         )
-    //     } else {
-    //         (Some(self.into()), None)
-    //     }
-    // }
+            let prefix = encode_path(&self.prefix.iter().collect::<Vec<_>>());
+            write_slice(&prefix, &mut payload);
 
-    // pub fn compute_hash(
-    //     &mut self,
-    //     nodes: &mut NodesStorage<P, V, H>,
-    //     values: &ValuesStorage<P, V>,
-    //     key_offset: usize,
-    // ) -> &[u8] {
-    //     if self.hash.0 == 0 {
-    //         let mut payload = Cursor::new(Vec::new());
+            let mut child = nodes
+                .try_remove(self.child_ref)
+                .expect("inconsistent internal tree structure");
+            let child_hash =
+                child.compute_hash(nodes, values, key_offset + self.prefix.iter().count());
+            write_slice(child_hash, &mut payload);
 
-    //         let mut digest_buf = DigestBuf::<H>::new();
+            write_list(&payload.into_inner(), &mut digest_buf);
+            self.hash.0 = digest_buf.extract_or_finalize(&mut self.hash.1);
+        }
 
-    //         let prefix = encode_path(&self.prefix);
-    //         write_slice(&prefix, &mut payload);
-
-    //         let mut child = nodes
-    //             .try_remove(self.child_ref)
-    //             .expect("inconsistent internal tree structure");
-    //         let child_hash = child.compute_hash(nodes, values, key_offset + self.prefix.len());
-    //         write_slice(child_hash, &mut payload);
-
-    //         write_list(&payload.into_inner(), &mut digest_buf);
-    //         self.hash.0 = digest_buf.extract_or_finalize(&mut self.hash.1);
-    //     }
-
-    //     &self.hash.1
-    // }
+        &self.hash.1
+    }
 }
 
 // #[cfg(test)]

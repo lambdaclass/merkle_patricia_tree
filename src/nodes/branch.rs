@@ -2,11 +2,11 @@ use super::LeafNode;
 use crate::{
     nibble::NibbleSlice,
     node::{InsertAction, Node},
-    util::INVALID_REF,
+    util::{write_list, write_slice, DigestBuf, INVALID_REF},
     NodesStorage, ValuesStorage,
 };
 use digest::{Digest, Output};
-use std::marker::PhantomData;
+use std::{io::Cursor, marker::PhantomData};
 
 #[derive(Clone, Debug)]
 pub struct BranchNode<P, V, H>
@@ -114,113 +114,56 @@ where
         (self.into(), insert_action)
     }
 
-    // pub fn remove<I>(
-    //     mut self,
-    //     nodes: &mut NodesStorage<P, V, H>,
-    //     values: &mut ValuesStorage<P, V>,
-    //     mut path_iter: Offseted<I>,
-    // ) -> (Option<Node<P, V, H>>, Option<V>)
-    // where
-    //     I: Iterator<Item = Nibble>,
-    // {
-    //     let child_index = match path_iter.next() {
-    //         Some(x) => x as usize,
-    //         None => return (Some(self.into()), None),
-    //     };
+    pub fn compute_hash(
+        &mut self,
+        nodes: &mut NodesStorage<P, V, H>,
+        values: &ValuesStorage<P, V>,
+        key_offset: usize,
+    ) -> &[u8] {
+        if self.hash.0 == 0 {
+            let mut digest_buf = DigestBuf::<H>::new();
 
-    //     let child_ref = match self.choices[child_index] {
-    //         Some(x) => x,
-    //         None => return (Some(self.into()), None),
-    //     };
+            let mut payload = Vec::new();
+            for choice in &mut self.choices {
+                match choice {
+                    Some(child_ref) => {
+                        let mut child_node = nodes
+                            .try_remove(*child_ref)
+                            .expect("inconsistent internal tree structure");
 
-    //     let (new_node, old_value) = nodes
-    //         .try_remove(child_ref)
-    //         .expect("inconsistent internal tree structure")
-    //         .remove(nodes, values, path_iter);
+                        payload.extend_from_slice(child_node.compute_hash(
+                            nodes,
+                            values,
+                            key_offset + 1,
+                        ));
 
-    //     if old_value.is_some() {
-    //         self.hash.0 = 0; // Mark hash as dirty.
-    //     }
+                        *child_ref = nodes.insert(child_node);
+                    }
+                    None => payload.push(0x80),
+                }
+            }
 
-    //     let new_node = if let Some(new_node) = new_node {
-    //         self.choices[child_index] = Some(nodes.insert(new_node));
-    //         Some(self.into())
-    //     } else {
-    //         let choices = self
-    //             .choices
-    //             .iter()
-    //             .copied()
-    //             .try_fold(None, |acc, child_ref| match (acc, child_ref) {
-    //                 (None, None) => Ok(None),
-    //                 (None, Some(child_ref)) => Ok(Some(child_ref)),
-    //                 (Some(acc), None) => Ok(Some(acc)),
-    //                 (Some(_), Some(_)) => Err(()),
-    //             })
-    //             .ok();
+            if let Some(value_ref) = self.value_ref {
+                write_slice(
+                    values
+                        .get(value_ref)
+                        .expect("inconsistent internal tree structure")
+                        .1
+                        .as_ref(),
+                    {
+                        let mut cursor = Cursor::new(&mut payload);
+                        cursor.set_position(cursor.get_ref().len() as u64);
+                        cursor
+                    },
+                );
+            }
 
-    //         match choices {
-    //             Some(x) if self.value_ref.is_none() => x.map(|child_ref| {
-    //                 nodes
-    //                     .try_remove(child_ref)
-    //                     .expect("inconsistent internal tree structure")
-    //             }),
-    //             _ => Some(self.into()),
-    //         }
-    //     };
+            write_list(&payload, &mut digest_buf);
+            self.hash.0 = digest_buf.extract_or_finalize(&mut self.hash.1);
+        }
 
-    //     (new_node, old_value)
-    // }
-
-    // pub fn compute_hash(
-    //     &mut self,
-    //     nodes: &mut NodesStorage<P, V, H>,
-    //     values: &ValuesStorage<P, V>,
-    //     key_offset: usize,
-    // ) -> &[u8] {
-    //     if self.hash.0 == 0 {
-    //         let mut digest_buf = DigestBuf::<H>::new();
-
-    //         let mut payload = Vec::new();
-    //         for choice in &mut self.choices {
-    //             match choice {
-    //                 Some(child_ref) => {
-    //                     let mut child_node = nodes
-    //                         .try_remove(*child_ref)
-    //                         .expect("inconsistent internal tree structure");
-
-    //                     payload.extend_from_slice(child_node.compute_hash(
-    //                         nodes,
-    //                         values,
-    //                         key_offset + 1,
-    //                     ));
-
-    //                     *child_ref = nodes.insert(child_node);
-    //                 }
-    //                 None => payload.push(0x80),
-    //             }
-    //         }
-
-    //         if let Some(value_ref) = self.value_ref {
-    //             write_slice(
-    //                 values
-    //                     .get(value_ref)
-    //                     .expect("inconsistent internal tree structure")
-    //                     .1
-    //                     .as_ref(),
-    //                 {
-    //                     let mut cursor = Cursor::new(&mut payload);
-    //                     cursor.set_position(cursor.get_ref().len() as u64);
-    //                     cursor
-    //                 },
-    //             );
-    //         }
-
-    //         write_list(&payload, &mut digest_buf);
-    //         self.hash.0 = digest_buf.extract_or_finalize(&mut self.hash.1);
-    //     }
-
-    //     &self.hash.1[..self.hash.0]
-    // }
+        &self.hash.1[..self.hash.0]
+    }
 }
 
 // #[cfg(test)]
