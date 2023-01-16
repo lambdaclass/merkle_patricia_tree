@@ -66,17 +66,15 @@ where
         mut path: NibbleSlice,
     ) -> (Node<P, V, H>, InsertAction) {
         // Possible flow paths (there are duplicates between different prefix lengths):
-        //   - [x] extension { [0], child } -> branch { 0 => child } with_value !
-        //   - [x] extension { [0], child } -> extension { [0], child }
-        //
-        //   - [ ] extension { [0, 1], child } -> branch { 0 => extension { [1], child } } with_value !
-        //   - [ ] extension { [0, 1], child } -> extension { [0], branch { 1 => child } with_value ! }
-        //   - [x] extension { [0, 1], child } -> extension { [0, 1], child }
-        //
-        //   - [ ] extension { [0, 1, 2], child } -> branch { 0 => extension { [1, 2], child } } with_value !
-        //   - [ ] extension { [0, 1, 2], child } -> extension { [0], branch { 1 => extension { [2], child } } with_value ! }
-        //   - [ ] extension { [0, 1, 2], child } -> extension { [0, 1], branch { 2 => child } with_value ! }
-        //   - [x] extension { [0, 1, 2], child } -> extension { [0, 1, 2], child }
+        //   extension { [0], child } -> branch { 0 => child } with_value !
+        //   extension { [0], child } -> extension { [0], child }
+        //   extension { [0, 1], child } -> branch { 0 => extension { [1], child } } with_value !
+        //   extension { [0, 1], child } -> extension { [0], branch { 1 => child } with_value ! }
+        //   extension { [0, 1], child } -> extension { [0, 1], child }
+        //   extension { [0, 1, 2], child } -> branch { 0 => extension { [1, 2], child } } with_value !
+        //   extension { [0, 1, 2], child } -> extension { [0], branch { 1 => extension { [2], child } } with_value ! }
+        //   extension { [0, 1, 2], child } -> extension { [0, 1], branch { 2 => child } with_value ! }
+        //   extension { [0, 1, 2], child } -> extension { [0, 1, 2], child }
 
         self.hash.0 = 0;
 
