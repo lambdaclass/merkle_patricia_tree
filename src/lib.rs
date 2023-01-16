@@ -64,7 +64,7 @@ where
     /// Create an empty tree.
     pub fn new() -> Self {
         Self {
-            root_ref: NodeRef(0),
+            root_ref: NodeRef(INVALID_REF),
             nodes: Slab::new(),
             values: Slab::new(),
         }
