@@ -261,4 +261,47 @@ mod test {
         assert_eq!(tree.get(&vec![48]), Some(&vec![0]));
         assert_eq!(tree.get(&vec![49]), Some(&vec![1]));
     }
+
+    #[test]
+    fn proptest_regression_247af0efadcb3a37ebb8f9e3258dc2096d295201a7c634a5470b2f17385417e1() {
+        let mut tree = PatriciaMerkleTree::<Vec<u8>, Vec<u8>, Keccak256>::new();
+
+        tree.insert(vec![26, 192, 44, 251], vec![26, 192, 44, 251]);
+        tree.insert(
+            vec![195, 132, 220, 124, 112, 201, 70, 128, 235],
+            vec![195, 132, 220, 124, 112, 201, 70, 128, 235],
+        );
+        tree.insert(vec![126, 138, 25, 245, 146], vec![126, 138, 25, 245, 146]);
+        tree.insert(
+            vec![129, 176, 66, 2, 150, 151, 180, 60, 124],
+            vec![129, 176, 66, 2, 150, 151, 180, 60, 124],
+        );
+        tree.insert(vec![138, 101, 157], vec![138, 101, 157]);
+
+        let item = tree.get(&vec![26, 192, 44, 251]);
+        assert!(item.is_some());
+        assert_eq!(item.unwrap(), &vec![26, 192, 44, 251]);
+
+        let item = tree.get(&vec![195, 132, 220, 124, 112, 201, 70, 128, 235]);
+        assert!(item.is_some());
+        assert_eq!(
+            item.unwrap(),
+            &vec![195, 132, 220, 124, 112, 201, 70, 128, 235]
+        );
+
+        let item = tree.get(&vec![126, 138, 25, 245, 146]);
+        assert!(item.is_some());
+        assert_eq!(item.unwrap(), &vec![126, 138, 25, 245, 146]);
+
+        let item = tree.get(&vec![129, 176, 66, 2, 150, 151, 180, 60, 124]);
+        assert!(item.is_some());
+        assert_eq!(
+            item.unwrap(),
+            &vec![129, 176, 66, 2, 150, 151, 180, 60, 124]
+        );
+
+        let item = tree.get(&vec![138, 101, 157]);
+        assert!(item.is_some());
+        assert_eq!(item.unwrap(), &vec![138, 101, 157]);
+    }
 }
