@@ -10,7 +10,7 @@ check:
 	cargo check --all-targets
 
 clippy:
-	cargo clippy --all-targets -- -D warnings
+	cargo clippy --all-targets
 
 test:
 	cargo test

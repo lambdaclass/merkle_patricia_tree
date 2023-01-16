@@ -1,5 +1,7 @@
 //! # Patricia Merkle Tree
 
+#![deny(warnings)]
+
 use self::{nibble::Nibble, node::Node};
 use crate::nodes::LeafNode;
 use digest::{Digest, Output};
