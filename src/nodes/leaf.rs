@@ -80,6 +80,7 @@ where
         } else {
             // TODO: Implement dedicated method (half-byte avoid iterators).
             let offset = NibbleSlice::new(value_path.as_ref())
+                .skip(path.offset())
                 .zip(path.clone())
                 .take_while(|(a, b)| a == b)
                 .count();
