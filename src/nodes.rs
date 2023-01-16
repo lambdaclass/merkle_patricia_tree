@@ -31,12 +31,12 @@ macro_rules! pmt_node {
         branch { $( $choice:expr => $child_type:ident { $( $child_tokens:tt )* } ),+ $(,)? }
     ) => {
         $crate::nodes::BranchNode::<Vec<u8>, _, sha3::Keccak256>::new({
-            let mut choices = [None; 16];
+            let mut choices = [NodeRef::default(); 16];
             $(
                 let child_node = $nodes.insert(pmt_node! { @($nodes, $values)
                     $child_type { $( $child_tokens )* }
                 }.into());
-                choices[$choice as usize] = Some($crate::NodeRef(child_node));
+                choices[$choice as usize] = $crate::NodeRef(child_node);
             )*
             choices
         })

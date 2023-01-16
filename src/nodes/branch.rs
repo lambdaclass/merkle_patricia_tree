@@ -2,7 +2,7 @@ use super::LeafNode;
 use crate::{
     nibble::NibbleSlice,
     node::{InsertAction, Node},
-    util::{write_list, write_slice, DigestBuf},
+    util::{write_list, write_slice, DigestBuf, INVALID_REF},
     NodeRef, NodesStorage, ValueRef, ValuesStorage,
 };
 use digest::{Digest, Output};
@@ -16,8 +16,8 @@ where
     H: Digest,
 {
     // The node zero is always the root, which cannot be a child.
-    choices: [Option<NodeRef>; 16],
-    value_ref: Option<ValueRef>,
+    choices: [NodeRef; 16],
+    value_ref: ValueRef,
 
     hash: (usize, Output<H>),
     phantom: PhantomData<(P, V, H)>,
@@ -29,16 +29,16 @@ where
     V: AsRef<[u8]>,
     H: Digest,
 {
-    pub(crate) fn new(choices: [Option<NodeRef>; 16]) -> Self {
+    pub(crate) fn new(choices: [NodeRef; 16]) -> Self {
         Self {
             choices,
-            value_ref: None,
+            value_ref: Default::default(),
             hash: (0, Default::default()),
             phantom: PhantomData,
         }
     }
 
-    pub(crate) fn update_value_ref(&mut self, new_value_ref: Option<ValueRef>) {
+    pub(crate) fn update_value_ref(&mut self, new_value_ref: ValueRef) {
         self.value_ref = new_value_ref;
     }
 
@@ -55,23 +55,29 @@ where
             .map(usize::from)
             .and_then(|choice| {
                 // Delegate to children if present.
-                self.choices[choice].and_then(|child_ref| {
-                    let child_node = nodes
-                        .get(child_ref.0)
-                        .expect("inconsistent internal tree structure");
+                match self.choices[choice] {
+                    NodeRef(INVALID_REF) => None,
+                    child_ref => {
+                        let child_node = nodes
+                            .get(child_ref.0)
+                            .expect("inconsistent internal tree structure");
 
-                    child_node.get(nodes, values, path)
-                })
+                        child_node.get(nodes, values, path)
+                    }
+                }
             })
             .or_else(|| {
                 // Return internal value if present.
-                self.value_ref.as_ref().map(|child_ref| {
-                    let (_, value) = values
-                        .get(child_ref.0)
-                        .expect("inconsistent internal tree structure");
+                match self.value_ref {
+                    ValueRef(INVALID_REF) => None,
+                    value_ref => {
+                        let (_, value) = values
+                            .get(value_ref.0)
+                            .expect("inconsistent internal tree structure");
 
-                    value
-                })
+                        Some(value)
+                    }
+                }
             })
     }
 
@@ -88,7 +94,13 @@ where
 
         let insert_action = match path.next() {
             Some(choice) => match &mut self.choices[choice as usize] {
-                Some(choice_ref) => {
+                choice_ref if *choice_ref == NodeRef(INVALID_REF) => {
+                    let child_ref = nodes.insert(LeafNode::new(Default::default()).into());
+                    *choice_ref = NodeRef(child_ref);
+
+                    InsertAction::Insert(NodeRef(child_ref))
+                }
+                choice_ref => {
                     let child_node = nodes
                         .try_remove(choice_ref.0)
                         .expect("inconsistent internal tree structure");
@@ -98,17 +110,11 @@ where
 
                     insert_action.quantize_self(*choice_ref)
                 }
-                choice_ref => {
-                    let child_ref = nodes.insert(LeafNode::new(Default::default()).into());
-                    *choice_ref = Some(NodeRef(child_ref));
-
-                    InsertAction::Insert(NodeRef(child_ref))
-                }
             },
-            None => self
-                .value_ref
-                .map(InsertAction::Replace)
-                .unwrap_or(InsertAction::InsertSelf),
+            None => match self.value_ref {
+                ValueRef(INVALID_REF) => InsertAction::InsertSelf,
+                value_ref => InsertAction::Replace(value_ref),
+            },
         };
 
         (self.into(), insert_action)
@@ -126,7 +132,8 @@ where
             let mut payload = Vec::new();
             for choice in &mut self.choices {
                 match choice {
-                    Some(child_ref) => {
+                    NodeRef(INVALID_REF) => payload.push(0x80),
+                    child_ref => {
                         let mut child_node = nodes
                             .try_remove(child_ref.0)
                             .expect("inconsistent internal tree structure");
@@ -139,14 +146,13 @@ where
 
                         *child_ref = NodeRef(nodes.insert(child_node));
                     }
-                    None => payload.push(0x80),
                 }
             }
 
-            if let Some(value_ref) = self.value_ref {
+            if self.value_ref != ValueRef(INVALID_REF) {
                 write_slice(
                     values
-                        .get(value_ref.0)
+                        .get(self.value_ref.0)
                         .expect("inconsistent internal tree structure")
                         .1
                         .as_ref(),
@@ -175,10 +181,10 @@ mod test {
     #[test]
     fn new() {
         let node = BranchNode::<Vec<u8>, Vec<u8>, Keccak256>::new({
-            let mut choices = [None; 16];
+            let mut choices = [Default::default(); 16];
 
-            choices[2] = Some(NodeRef(2));
-            choices[5] = Some(NodeRef(5));
+            choices[2] = NodeRef(2);
+            choices[5] = NodeRef(5);
 
             choices
         });
@@ -186,22 +192,22 @@ mod test {
         assert_eq!(
             node.choices,
             [
-                None,
-                None,
-                Some(NodeRef(2)),
-                None,
-                None,
-                Some(NodeRef(5)),
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
+                Default::default(),
+                Default::default(),
+                NodeRef(2),
+                Default::default(),
+                Default::default(),
+                NodeRef(5),
+                Default::default(),
+                Default::default(),
+                Default::default(),
+                Default::default(),
+                Default::default(),
+                Default::default(),
+                Default::default(),
+                Default::default(),
+                Default::default(),
+                Default::default(),
             ],
         );
     }

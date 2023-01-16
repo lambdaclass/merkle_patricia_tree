@@ -110,9 +110,7 @@ where
                             .expect("inconsistent internal tree structure")
                         {
                             Node::Leaf(leaf_node) => leaf_node.update_value_ref(value_ref),
-                            Node::Branch(branch_node) => {
-                                branch_node.update_value_ref(Some(value_ref))
-                            }
+                            Node::Branch(branch_node) => branch_node.update_value_ref(value_ref),
                             _ => panic!("inconsistent internal tree structure"),
                         };
 
@@ -360,5 +358,23 @@ mod test {
 
         insert_vecs(&mut tree, &vecs);
         check_vecs(&mut tree, &vecs);
+    }
+
+    #[test]
+    fn display_sizes() {
+        println!(
+            "sizeof::<BranchNode>() = {}",
+            std::mem::size_of::<crate::nodes::BranchNode<[u8; 0], [u8; 0], Keccak256>>()
+        );
+        println!(
+            "sizeof::<ExtensionNode>() = {}",
+            std::mem::size_of::<crate::nodes::ExtensionNode<[u8; 0], [u8; 0], Keccak256>>()
+        );
+        println!(
+            "sizeof::<LeafNode>() = {}",
+            std::mem::size_of::<crate::nodes::LeafNode<[u8; 0], [u8; 0], Keccak256>>()
+        );
+
+        todo!()
     }
 }

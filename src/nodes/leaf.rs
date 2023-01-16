@@ -92,11 +92,11 @@ where
             let (branch_node, mut insert_action) = if offset == 2 * path.as_ref().len() {
                 (
                     BranchNode::new({
-                        let mut choices = [None; 16];
+                        let mut choices = [Default::default(); 16];
                         // TODO: Dedicated method.
                         choices[NibbleSlice::new(value_path.as_ref())
                             .nth(absolute_offset)
-                            .unwrap() as usize] = Some(NodeRef(nodes.insert(self.into())));
+                            .unwrap() as usize] = NodeRef(nodes.insert(self.into()));
                         choices
                     }),
                     InsertAction::InsertSelf,
@@ -104,12 +104,12 @@ where
             } else if offset == 2 * value_path.as_ref().len() {
                 let child_ref = nodes.insert(LeafNode::new(Default::default()).into());
                 let mut branch_node = BranchNode::new({
-                    let mut choices = [None; 16];
+                    let mut choices = [Default::default(); 16];
                     // TODO: Dedicated method.
-                    choices[path_branch.next().unwrap() as usize] = Some(NodeRef(child_ref));
+                    choices[path_branch.next().unwrap() as usize] = NodeRef(child_ref);
                     choices
                 });
-                branch_node.update_value_ref(Some(self.value_ref));
+                branch_node.update_value_ref(self.value_ref);
 
                 (branch_node, InsertAction::Insert(NodeRef(child_ref)))
             } else {
@@ -117,13 +117,13 @@ where
 
                 (
                     BranchNode::new({
-                        let mut choices = [None; 16];
+                        let mut choices = [Default::default(); 16];
                         // TODO: Dedicated method.
                         choices[NibbleSlice::new(value_path.as_ref())
                             .nth(absolute_offset)
-                            .unwrap() as usize] = Some(NodeRef(nodes.insert(self.into())));
+                            .unwrap() as usize] = NodeRef(nodes.insert(self.into()));
                         // TODO: Dedicated method.
-                        choices[path_branch.next().unwrap() as usize] = Some(NodeRef(child_ref));
+                        choices[path_branch.next().unwrap() as usize] = NodeRef(child_ref);
                         choices
                     }),
                     InsertAction::Insert(NodeRef(child_ref)),

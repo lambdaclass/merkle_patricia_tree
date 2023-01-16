@@ -116,8 +116,8 @@ where
 
             // Branch node (child is prefix right or self.child_ref).
             let branch_node = BranchNode::new({
-                let mut choices = [None; 16];
-                choices[choice as usize] = Some(NodeRef(right_prefix_node));
+                let mut choices = [Default::default(); 16];
+                choices[choice as usize] = NodeRef(right_prefix_node);
                 choices
             })
             .into();
