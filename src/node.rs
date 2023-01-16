@@ -1,7 +1,7 @@
 use crate::{
     nibble::NibbleSlice,
     nodes::{BranchNode, ExtensionNode, LeafNode},
-    NodesStorage, ValuesStorage,
+    NodeRef, NodesStorage, ValueRef, ValuesStorage,
 };
 use digest::Digest;
 
@@ -42,7 +42,7 @@ where
         }
     }
 
-    pub fn insert(
+    pub(crate) fn insert(
         self,
         nodes: &mut NodesStorage<P, V, H>,
         values: &mut ValuesStorage<P, V>,
@@ -106,13 +106,13 @@ where
 
 /// Returned by .insert() to update the values' storage.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum InsertAction {
+pub(crate) enum InsertAction {
     // /// No action is required.
     // Nothing,
     /// An insertion is required. The argument points to a node.
-    Insert(usize),
+    Insert(NodeRef),
     /// A replacement is required. The argument points to a value.
-    Replace(usize),
+    Replace(ValueRef),
 
     /// Special insert where its node_ref is not known.
     InsertSelf,
@@ -120,7 +120,7 @@ pub enum InsertAction {
 
 impl InsertAction {
     /// Replace `Self::InsertSelf` with `Self::Insert(node_ref)`.
-    pub fn quantize_self(self, node_ref: usize) -> Self {
+    pub fn quantize_self(self, node_ref: NodeRef) -> Self {
         match self {
             Self::InsertSelf => Self::Insert(node_ref),
             _ => self,

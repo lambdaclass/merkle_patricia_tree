@@ -3,7 +3,7 @@ use crate::{
     nibble::{NibbleSlice, NibbleVec},
     node::{InsertAction, Node},
     util::{encode_path, write_list, write_slice, DigestBuf},
-    NodesStorage, ValuesStorage,
+    NodeRef, NodesStorage, ValuesStorage,
 };
 use digest::{Digest, Output};
 use std::{io::Cursor, marker::PhantomData};
@@ -18,7 +18,7 @@ where
     prefix: NibbleVec,
     // The child node may only be a branch, but it's not included directly by value to avoid
     // inflating `Node`'s size too much.
-    child_ref: usize,
+    child_ref: NodeRef,
 
     hash: (usize, Output<H>),
     phantom: PhantomData<(P, V, H)>,
@@ -30,7 +30,7 @@ where
     V: AsRef<[u8]>,
     H: Digest,
 {
-    pub fn new(prefix: NibbleVec, child_ref: usize) -> Self {
+    pub(crate) fn new(prefix: NibbleVec, child_ref: NodeRef) -> Self {
         Self {
             prefix,
             child_ref,
@@ -51,7 +51,7 @@ where
         path.skip_prefix(&self.prefix)
             .then(|| {
                 let child_node = nodes
-                    .get(self.child_ref)
+                    .get(self.child_ref.0)
                     .expect("inconsistent internal tree structure");
 
                 child_node.get(nodes, values, path)
@@ -59,7 +59,7 @@ where
             .flatten()
     }
 
-    pub fn insert(
+    pub(crate) fn insert(
         mut self,
         nodes: &mut NodesStorage<P, V, H>,
         values: &mut ValuesStorage<P, V>,
@@ -82,11 +82,11 @@ where
 
         if path.skip_prefix(&self.prefix) {
             let child_node = nodes
-                .try_remove(self.child_ref)
+                .try_remove(self.child_ref.0)
                 .expect("inconsistent internal tree structure");
 
             let (child_node, insert_action) = child_node.insert(nodes, values, path);
-            self.child_ref = nodes.insert(child_node);
+            self.child_ref = NodeRef(nodes.insert(child_node));
 
             let insert_action = insert_action.quantize_self(self.child_ref);
             (self.into(), insert_action)
@@ -114,12 +114,12 @@ where
                 .map(|right_prefix| {
                     nodes.insert(ExtensionNode::new(right_prefix, self.child_ref).into())
                 })
-                .unwrap_or(self.child_ref);
+                .unwrap_or(self.child_ref.0);
 
             // Branch node (child is prefix right or self.child_ref).
             let branch_node = BranchNode::new({
                 let mut choices = [None; 16];
-                choices[choice as usize] = Some(right_prefix_node);
+                choices[choice as usize] = Some(NodeRef(right_prefix_node));
                 choices
             })
             .into();
@@ -127,7 +127,7 @@ where
             // Prefix left node (if any, child is branch_node).
             match left_prefix {
                 Some(left_prefix) => {
-                    let branch_ref = nodes.insert(branch_node);
+                    let branch_ref = NodeRef(nodes.insert(branch_node));
 
                     (
                         ExtensionNode::new(left_prefix, branch_ref).into(),
@@ -154,7 +154,7 @@ where
             write_slice(&prefix, &mut payload);
 
             let mut child = nodes
-                .try_remove(self.child_ref)
+                .try_remove(self.child_ref.0)
                 .expect("inconsistent internal tree structure");
             let child_hash =
                 child.compute_hash(nodes, values, key_offset + self.prefix.iter().count());
@@ -171,15 +171,16 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{nibble::Nibble, pmt_node, pmt_state};
+    use crate::{nibble::Nibble, pmt_node, pmt_state, util::INVALID_REF};
     use sha3::Keccak256;
 
     #[test]
     fn new() {
-        let node = ExtensionNode::<Vec<u8>, Vec<u8>, Keccak256>::new(NibbleVec::new(), 12);
+        let node =
+            ExtensionNode::<Vec<u8>, Vec<u8>, Keccak256>::new(NibbleVec::new(), Default::default());
 
         assert_eq!(node.prefix.iter().count(), 0);
-        assert_eq!(node.child_ref, 12);
+        assert_eq!(node.child_ref, NodeRef(INVALID_REF));
     }
 
     #[test]
@@ -242,7 +243,7 @@ mod test {
 
         // TODO: Check children.
         assert!(node.prefix.iter().eq([Nibble::V0].into_iter()));
-        assert_eq!(insert_action, InsertAction::Insert(2));
+        assert_eq!(insert_action, InsertAction::Insert(NodeRef(2)));
     }
 
     #[test]
@@ -305,7 +306,7 @@ mod test {
         };
 
         // TODO: Check node and children.
-        assert_eq!(insert_action, InsertAction::Insert(3));
+        assert_eq!(insert_action, InsertAction::Insert(NodeRef(3)));
     }
 
     #[test]
@@ -326,6 +327,6 @@ mod test {
         };
 
         // TODO: Check node and children.
-        assert_eq!(insert_action, InsertAction::Insert(3));
+        assert_eq!(insert_action, InsertAction::Insert(NodeRef(3)));
     }
 }

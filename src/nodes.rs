@@ -36,7 +36,7 @@ macro_rules! pmt_node {
                 let child_node = $nodes.insert(pmt_node! { @($nodes, $values)
                     $child_type { $( $child_tokens )* }
                 }.into());
-                choices[$choice as usize] = Some(child_node);
+                choices[$choice as usize] = Some($crate::NodeRef(child_node));
             )*
             choices
         })
@@ -75,13 +75,15 @@ macro_rules! pmt_node {
                 let child_node = pmt_node! { @($nodes, $values)
                     $child_type { $( $child_tokens )* }
                 }.into();
-                $nodes.insert(child_node)
+                NodeRef($nodes.insert(child_node))
             }
         )
     };
 
     ( @( $nodes:expr, $values:expr ) leaf { $key:expr => $value:expr } ) => {
-        $crate::nodes::LeafNode::<Vec<u8>, _, sha3::Keccak256>::new($values.insert(($key, $value)))
+        $crate::nodes::LeafNode::<Vec<u8>, _, sha3::Keccak256>::new(
+            $crate::ValueRef($values.insert(($key, $value)))
+        )
     };
 }
 
