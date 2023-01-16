@@ -32,9 +32,12 @@ macro_rules! pmt_node {
     ) => {
         $crate::nodes::BranchNode::<Vec<u8>, _, sha3::Keccak256>::new({
             let mut choices = [None; 16];
-            $( choices[$choice as usize] = Some($nodes.insert(pmt_node! { @($nodes, $values)
-                $child_type { $( $child_tokens )* }
-            }.into())); )*
+            $(
+                let child_node = $nodes.insert(pmt_node! { @($nodes, $values)
+                    $child_type { $( $child_tokens )* }
+                }.into());
+                choices[$choice as usize] = Some(child_node);
+            )*
             choices
         })
     };
@@ -63,13 +66,17 @@ macro_rules! pmt_node {
         extension { $prefix:expr , $child_type:ident { $( $child_tokens:tt )* } }
     ) => {
         $crate::nodes::ExtensionNode::<Vec<u8>, _, sha3::Keccak256>::new(
-            $prefix,
-            nodes.insert(
-                pmt_node!(
-                    @($nodes, $values)
+            $crate::nibble::NibbleVec::from_nibbles(
+                $prefix
+                    .into_iter()
+                    .map(|x: u8|  $crate::nibble::Nibble::try_from(x).unwrap())
+            ),
+            {
+                let child_node = pmt_node! { @($nodes, $values)
                     $child_type { $( $child_tokens )* }
-                ).into()
-            )
+                }.into();
+                $nodes.insert(child_node)
+            }
         )
     };
 

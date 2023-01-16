@@ -61,11 +61,12 @@ where
         values: &mut ValuesStorage<P, V>,
         path: NibbleSlice,
     ) -> (Node<P, V, H>, InsertAction) {
-        // [x] leaf { key => value } -> leaf { key => value }
-        // [ ] leaf { key => value } -> branch { 0 => leaf { key => value }, 1 => leaf { key => value } }
-        // [ ] leaf { key => value } -> extension { [0], branch { 0 => leaf { key => value }, 1 => leaf { key => value } } }
-        // [ ] leaf { key => value } -> extension { [0], branch { 0 => leaf { key => value } } with_value leaf { key => value } }
-        // [ ] leaf { key => value } -> extension { [0], branch { 0 => leaf { key => value } } with_value leaf { key => value } } // leafs swapped
+        // Possible flow paths:
+        //   - [x] leaf { key => value } -> leaf { key => value }
+        //   - [ ] leaf { key => value } -> branch { 0 => leaf { key => value }, 1 => leaf { key => value } }
+        //   - [ ] leaf { key => value } -> extension { [0], branch { 0 => leaf { key => value }, 1 => leaf { key => value } } }
+        //   - [ ] leaf { key => value } -> extension { [0], branch { 0 => leaf { key => value } } with_value leaf { key => value } }
+        //   - [ ] leaf { key => value } -> extension { [0], branch { 0 => leaf { key => value } } with_value leaf { key => value } } // leafs swapped
 
         self.hash.0 = 0;
 
@@ -86,45 +87,47 @@ where
             let mut path_branch = path.clone();
             path_branch.offset_add(offset);
 
-            let (branch_node, mut insert_action) =
-                if offset == 2 * path.as_ref().len() {
-                    (
-                        BranchNode::new({
-                            let mut choices = [None; 16];
-                            // TODO: Dedicated method.
-                            choices[NibbleSlice::new(value_path.as_ref()).nth(offset).unwrap()
-                                as usize] = Some(nodes.insert(self.into()));
-                            choices
-                        }),
-                        InsertAction::InsertSelf,
-                    )
-                } else if offset == 2 * value_path.as_ref().len() {
-                    let child_ref = nodes.insert(LeafNode::new(INVALID_REF).into());
-                    let mut branch_node = BranchNode::new({
+            let absolute_offset = path_branch.offset();
+            let (branch_node, mut insert_action) = if offset == 2 * path.as_ref().len() {
+                (
+                    BranchNode::new({
                         let mut choices = [None; 16];
+                        // TODO: Dedicated method.
+                        choices[NibbleSlice::new(value_path.as_ref())
+                            .nth(absolute_offset)
+                            .unwrap() as usize] = Some(nodes.insert(self.into()));
+                        choices
+                    }),
+                    InsertAction::InsertSelf,
+                )
+            } else if offset == 2 * value_path.as_ref().len() {
+                let child_ref = nodes.insert(LeafNode::new(INVALID_REF).into());
+                let mut branch_node = BranchNode::new({
+                    let mut choices = [None; 16];
+                    // TODO: Dedicated method.
+                    choices[path_branch.next().unwrap() as usize] = Some(child_ref);
+                    choices
+                });
+                branch_node.update_value_ref(Some(self.value_ref));
+
+                (branch_node, InsertAction::Insert(child_ref))
+            } else {
+                let child_ref = nodes.insert(LeafNode::new(INVALID_REF).into());
+
+                (
+                    BranchNode::new({
+                        let mut choices = [None; 16];
+                        // TODO: Dedicated method.
+                        choices
+                            [NibbleSlice::new(value_path.as_ref()).nth(absolute_offset).unwrap() as usize] =
+                            Some(nodes.insert(self.into()));
                         // TODO: Dedicated method.
                         choices[path_branch.next().unwrap() as usize] = Some(child_ref);
                         choices
-                    });
-                    branch_node.update_value_ref(Some(self.value_ref));
-
-                    (branch_node, InsertAction::Insert(child_ref))
-                } else {
-                    let child_ref = nodes.insert(LeafNode::new(INVALID_REF).into());
-
-                    (
-                        BranchNode::new({
-                            let mut choices = [None; 16];
-                            // TODO: Dedicated method.
-                            choices[NibbleSlice::new(value_path.as_ref()).nth(offset).unwrap()
-                                as usize] = Some(nodes.insert(self.into()));
-                            // TODO: Dedicated method.
-                            choices[path_branch.next().unwrap() as usize] = Some(child_ref);
-                            choices
-                        }),
-                        InsertAction::Insert(child_ref),
-                    )
-                };
+                    }),
+                    InsertAction::Insert(child_ref),
+                )
+            };
 
             let final_node = if offset != 0 {
                 let branch_ref = nodes.insert(branch_node.into());
@@ -175,7 +178,7 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{pmt_node, pmt_state, util::Offseted};
+    use crate::{pmt_node, pmt_state};
     use sha3::Keccak256;
 
     #[test]
@@ -215,13 +218,102 @@ mod test {
     }
 
     #[test]
-    #[should_panic]
-    fn get_inconsistent_internal_tree_structure() {
-        let (nodes, values) = pmt_state!(Vec<u8>);
+    fn insert_replace() {
+        let (mut nodes, mut values) = pmt_state!(Vec<u8>);
 
-        let path = NibbleSlice::new(&[0xFF]);
-        let node = LeafNode::new(0);
+        let node = pmt_node! { @(nodes, values)
+            leaf { vec![0x12] => vec![0x12, 0x34, 0x56, 0x78] }
+        };
 
-        node.get(&nodes, &values, path);
+        let (node, insert_action) = node.insert(&mut nodes, &mut values, NibbleSlice::new(&[0x12]));
+        let node = match node {
+            Node::Leaf(x) => x,
+            _ => panic!("expected a leaf node"),
+        };
+
+        assert_eq!(node.value_ref, 0);
+        assert_eq!(node.hash.0, 0);
+        assert_eq!(insert_action, InsertAction::Replace(0));
     }
+
+    #[test]
+    fn insert_branch() {
+        let (mut nodes, mut values) = pmt_state!(Vec<u8>);
+
+        let node = pmt_node! { @(nodes, values)
+            leaf { vec![0x12] => vec![0x12, 0x34, 0x56, 0x78] }
+        };
+
+        let (node, insert_action) = node.insert(&mut nodes, &mut values, NibbleSlice::new(&[0x22]));
+        let _ = match node {
+            Node::Branch(x) => x,
+            _ => panic!("expected a branch node"),
+        };
+
+        // TODO: Check branch.
+        assert_eq!(insert_action, InsertAction::Insert(0));
+    }
+
+    #[test]
+    fn insert_extension_branch() {
+        let (mut nodes, mut values) = pmt_state!(Vec<u8>);
+
+        let node = pmt_node! { @(nodes, values)
+            leaf { vec![0x12] => vec![0x12, 0x34, 0x56, 0x78] }
+        };
+
+        let (node, insert_action) = node.insert(&mut nodes, &mut values, NibbleSlice::new(&[0x13]));
+        let _ = match node {
+            Node::Extension(x) => x,
+            _ => panic!("expected an extension node"),
+        };
+
+        // TODO: Check extension (and child branch).
+        assert_eq!(insert_action, InsertAction::Insert(0));
+    }
+
+    #[test]
+    fn insert_extension_branch_value_self() {
+        let (mut nodes, mut values) = pmt_state!(Vec<u8>);
+
+        let node = pmt_node! { @(nodes, values)
+            leaf { vec![0x12] => vec![0x12, 0x34, 0x56, 0x78] }
+        };
+
+        let (node, insert_action) =
+            node.insert(&mut nodes, &mut values, NibbleSlice::new(&[0x12, 0x34]));
+        let _ = match node {
+            Node::Extension(x) => x,
+            _ => panic!("expected an extension node"),
+        };
+
+        // TODO: Check extension (and children).
+        assert_eq!(insert_action, InsertAction::Insert(0));
+    }
+
+    #[test]
+    fn insert_extension_branch_value_other() {
+        let (mut nodes, mut values) = pmt_state!(Vec<u8>);
+
+        let node = pmt_node! { @(nodes, values)
+            leaf { vec![0x12, 0x34] => vec![0x12, 0x34, 0x56, 0x78] }
+        };
+
+        let (node, insert_action) = node.insert(&mut nodes, &mut values, NibbleSlice::new(&[0x12]));
+        let _ = match node {
+            Node::Extension(x) => x,
+            _ => panic!("expected an extension node"),
+        };
+
+        // TODO: Check extension (and children).
+        assert_eq!(insert_action, InsertAction::Insert(1));
+    }
+
+    // An insertion that returns branch [value=(x)] -> leaf (y) is not possible because of the key
+    // restrictions: nibbles come in pairs. If the first nibble is different, the node will be a
+    // branch but it cannot have a value. If the second nibble is different, then it'll be an
+    // extension followed by a branch with value and a child.
+    //
+    // Because of that, the two tests that would check those cases are neither necessary nor
+    // possible.
 }

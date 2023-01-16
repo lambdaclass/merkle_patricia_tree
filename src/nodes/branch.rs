@@ -168,154 +168,150 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::{nibble::Nibble, pmt_node, pmt_state};
-
     use super::*;
+    use crate::{pmt_node, pmt_state};
     use sha3::Keccak256;
-    use slab::Slab;
-    use std::{iter::Copied, slice::Iter};
 
-    //     #[derive(Clone, Debug, Eq, PartialEq)]
-    //     struct MyNodePath(Vec<Nibble>);
+    #[test]
+    fn new() {
+        let node = BranchNode::<Vec<u8>, Vec<u8>, Keccak256>::new({
+            let mut choices = [None; 16];
 
-    //     impl TreePath for MyNodePath {
-    //         type Iterator<'a> = Copied<Iter<'a, Nibble>>;
+            choices[2] = Some(2);
+            choices[5] = Some(5);
 
-    //         fn encode(&self, mut target: impl std::io::Write) -> std::io::Result<()> {
-    //             let mut iter = self.0.iter().copied().peekable();
-    //             if self.0.len() % 2 == 1 {
-    //                 target.write_all(&[iter.next().unwrap() as u8])?;
-    //             }
+            choices
+        });
 
-    //             while iter.peek().is_some() {
-    //                 let a = iter.next().unwrap() as u8;
-    //                 let b = iter.next().unwrap() as u8;
-
-    //                 target.write_all(&[(a << 4) | b])?;
-    //             }
-
-    //             Ok(())
-    //         }
-
-    //         fn encoded_iter(&self) -> Self::Iterator<'_> {
-    //             self.0.iter().copied()
-    //         }
-    //     }
-
-    //     #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-    //     struct MyNodeValue([u8; 4]);
-
-    //     impl MyNodeValue {
-    //         pub fn new(value: i32) -> Self {
-    //             Self(value.to_be_bytes())
-    //         }
-    //     }
-
-    //     impl AsRef<[u8]> for MyNodeValue {
-    //         fn as_ref(&self) -> &[u8] {
-    //             &self.0
-    //         }
-    //     }
-
-    //     #[test]
-    //     fn new() {
-    //         let node = BranchNode::<MyNodePath, MyNodeValue, Keccak256>::new({
-    //             let mut choices = [None; 16];
-
-    //             choices[2] = Some(2);
-    //             choices[5] = Some(5);
-
-    //             choices
-    //         });
-
-    //         assert_eq!(
-    //             node.choices,
-    //             [
-    //                 None,
-    //                 None,
-    //                 Some(2),
-    //                 None,
-    //                 None,
-    //                 Some(5),
-    //                 None,
-    //                 None,
-    //                 None,
-    //                 None,
-    //                 None,
-    //                 None,
-    //                 None,
-    //                 None,
-    //                 None,
-    //                 None,
-    //             ],
-    //         );
-    //     }
+        assert_eq!(
+            node.choices,
+            [
+                None,
+                None,
+                Some(2),
+                None,
+                None,
+                Some(5),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            ],
+        );
+    }
 
     #[test]
     fn get_some() {
         let (mut nodes, mut values) = pmt_state!(Vec<u8>);
 
-        let branch_node = pmt_node! { @(nodes, values)
+        let node = pmt_node! { @(nodes, values)
             branch {
-                0 => leaf { vec![0x00] => vec![0, 1, 2] },
-                1 => leaf { vec![0x10] => vec![2, 1, 0] },
+                0 => leaf { vec![0x00] => vec![0x12, 0x34, 0x56, 0x78] },
+                1 => leaf { vec![0x10] => vec![0x34, 0x56, 0x78, 0x9A] },
             }
         };
 
-        // println!("{:x?}", &NibbleSlice::new(&[0]));
-
         assert_eq!(
-            branch_node.get(&nodes, &values, NibbleSlice::new(&[0])),
-            Some(&vec![0, 1, 2]),
+            node.get(&nodes, &values, NibbleSlice::new(&[0x00]))
+                .map(Vec::as_slice),
+            Some([0x12, 0x34, 0x56, 0x78].as_slice()),
+        );
+        assert_eq!(
+            node.get(&nodes, &values, NibbleSlice::new(&[0x10]))
+                .map(Vec::as_slice),
+            Some([0x34, 0x56, 0x78, 0x9A].as_slice()),
         );
     }
 
-    /*
     #[test]
     fn get_none() {
-        let (nodes, values) = pmt_state!(Vec<u8>);
+        let (mut nodes, mut values) = pmt_state!(Vec<u8>);
 
-
-        let branch_node = pmt_node! { @(nodes, values)
+        let node = pmt_node! { @(nodes, values)
             branch {
-                0 => leaf { vec![1] => vec![0, 1, 2] },
-                1 => leaf { vec![2] => vec![2, 1, 0] },
+                0 => leaf { vec![0x00] => vec![0x12, 0x34, 0x56, 0x78] },
+                1 => leaf { vec![0x10] => vec![0x34, 0x56, 0x78, 0x9A] },
             }
         };
 
-
-        let path = MyNodePath(vec![Nibble::V0]);
-        let value = MyNodeValue::new(42);
-
-        let value_ref = values.insert((path.clone(), value));
-        let child_node = LeafNode::<MyNodePath, MyNodeValue, Keccak256>::new(value_ref);
-        let child_ref = nodes.insert(child_node.into());
-
-        let node = BranchNode::<_, _, Keccak256>::new({
-            let mut choices = [None; 16];
-            choices[path.encoded_iter().next().unwrap() as usize] = Some(child_ref);
-            choices
-        });
-
-        let path = MyNodePath(vec![Nibble::V1]);
         assert_eq!(
-            node.get(&nodes, &values, Offseted::new(path.encoded_iter())),
+            node.get(&nodes, &values, NibbleSlice::new(&[0x20]))
+                .map(Vec::as_slice),
             None,
         );
-
     }
-    */
 
     #[test]
-    #[should_panic]
-    fn get_inconsistent_internal_tree_structure() {
-        let (nodes, values) = pmt_state!(Vec<u8>);
+    fn insert_self() {
+        let (mut nodes, mut values) = pmt_state!(Vec<u8>);
 
-        let mut choices = [None; 16];
-        choices[0] = Some(1234);
+        let node = pmt_node! { @(nodes, values)
+            branch {
+                0 => leaf { vec![0x00] => vec![0x12, 0x34, 0x56, 0x78] },
+                1 => leaf { vec![0x10] => vec![0x34, 0x56, 0x78, 0x9A] },
+            }
+        };
 
-        let node = BranchNode::new(choices);
+        let (node, insert_action) = node.insert(&mut nodes, &mut values, NibbleSlice::new(&[]));
+        let _ = match node {
+            Node::Branch(x) => x,
+            _ => panic!("expected a branch node"),
+        };
 
-        node.get(&nodes, &values, NibbleSlice::new(&[0x0]));
+        // TODO: Check node and children.
+        assert_eq!(insert_action, InsertAction::InsertSelf);
+    }
+
+    #[test]
+    fn insert_choice() {
+        let (mut nodes, mut values) = pmt_state!(Vec<u8>);
+
+        let node = pmt_node! { @(nodes, values)
+            branch {
+                0 => leaf { vec![0x00] => vec![0x12, 0x34, 0x56, 0x78] },
+                1 => leaf { vec![0x10] => vec![0x34, 0x56, 0x78, 0x9A] },
+            }
+        };
+
+        let (node, insert_action) = node.insert(&mut nodes, &mut values, NibbleSlice::new(&[0x20]));
+        let _ = match node {
+            Node::Branch(x) => x,
+            _ => panic!("expected a branch node"),
+        };
+
+        // TODO: Check node and children.
+        assert_eq!(insert_action, InsertAction::Insert(2));
+    }
+
+    #[test]
+    fn insert_passthrough() {
+        let (mut nodes, mut values) = pmt_state!(Vec<u8>);
+
+        let node = pmt_node! { @(nodes, values)
+            branch {
+                0 => leaf { vec![0x00] => vec![0x12, 0x34, 0x56, 0x78] },
+                1 => leaf { vec![0x10] => vec![0x34, 0x56, 0x78, 0x9A] },
+            }
+        };
+
+        // The extension node is ignored since it's irrelevant in this test.
+        let (node, insert_action) = node.insert(&mut nodes, &mut values, {
+            let mut nibble_slice = NibbleSlice::new(&[0x00]);
+            nibble_slice.offset_add(2);
+            nibble_slice
+        });
+        let _ = match node {
+            Node::Branch(x) => x,
+            _ => panic!("expected a branch node"),
+        };
+
+        // TODO: Check node and children.
+        assert_eq!(insert_action, InsertAction::InsertSelf);
     }
 }

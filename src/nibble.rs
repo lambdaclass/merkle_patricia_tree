@@ -72,6 +72,10 @@ impl<'a> NibbleSlice<'a> {
         }
     }
 
+    pub fn offset(&self) -> usize {
+        self.offset
+    }
+
     pub fn split_to_vec(&self, offset: usize) -> NibbleVec {
         NibbleVec {
             data: SmallVec::from_slice(
@@ -208,7 +212,7 @@ impl<'a> Iterator for NibbleSlice<'a> {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct NibbleVec {
     data: SmallVec<[u8; 64]>,
 
@@ -222,6 +226,26 @@ impl NibbleVec {
             data: Default::default(),
             first_is_half: false,
             last_is_half: false,
+        }
+    }
+
+    pub fn from_nibbles(data_iter: impl Iterator<Item = Nibble>) -> Self {
+        let mut last_is_half = false;
+        let mut data = SmallVec::new();
+        for nibble in data_iter {
+            if !last_is_half {
+                data.push((nibble as u8) << 4);
+            } else {
+                *data.last_mut().unwrap() |= nibble as u8;
+            }
+
+            last_is_half = !last_is_half;
+        }
+
+        Self {
+            data,
+            first_is_half: false,
+            last_is_half,
         }
     }
 

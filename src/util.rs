@@ -1,9 +1,6 @@
 use crate::Nibble;
 use digest::{Digest, Output};
-use std::{
-    io::{Cursor, Write},
-    iter::Peekable,
-};
+use std::io::{Cursor, Write};
 
 pub const INVALID_REF: usize = usize::MAX;
 
@@ -128,53 +125,5 @@ where
 
     fn flush(&mut self) -> std::io::Result<()> {
         Ok(())
-    }
-}
-
-pub struct Offseted<I>(Peekable<I>, usize)
-where
-    I: Iterator;
-
-impl<I> Offseted<I>
-where
-    I: Iterator,
-{
-    pub fn new(inner: I) -> Self {
-        Self(inner.peekable(), 0)
-    }
-
-    pub fn offset(&self) -> usize {
-        self.1
-    }
-
-    pub fn peek(&mut self) -> Option<&I::Item> {
-        self.0.peek()
-    }
-
-    pub fn count_equals<I2>(&mut self, rhs: &mut Peekable<I2>) -> usize
-    where
-        I2: Iterator,
-        I2::Item: PartialEq<I::Item>,
-    {
-        let mut count = 0;
-        while self.0.next_if(|x| rhs.next_if_eq(x).is_some()).is_some() {
-            count += 1;
-        }
-        self.1 += count;
-        count
-    }
-}
-
-impl<I> Iterator for Offseted<I>
-where
-    I: Iterator,
-{
-    type Item = I::Item;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(|x| {
-            self.1 += 1;
-            x
-        })
     }
 }
