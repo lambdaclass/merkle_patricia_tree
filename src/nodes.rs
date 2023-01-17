@@ -31,12 +31,12 @@ macro_rules! pmt_node {
         branch { $( $choice:expr => $child_type:ident { $( $child_tokens:tt )* } ),+ $(,)? }
     ) => {
         $crate::nodes::BranchNode::<Vec<u8>, _, sha3::Keccak256>::new({
-            let mut choices = [NodeRef::default(); 16];
+            let mut choices = [$crate::storage::NodeRef::default(); 16];
             $(
                 let child_node = $nodes.insert(pmt_node! { @($nodes, $values)
                     $child_type { $( $child_tokens )* }
                 }.into());
-                choices[$choice as usize] = $crate::NodeRef(child_node);
+                choices[$choice as usize] = $crate::storage::NodeRef::new(child_node);
             )*
             choices
         })
@@ -75,14 +75,14 @@ macro_rules! pmt_node {
                 let child_node = pmt_node! { @($nodes, $values)
                     $child_type { $( $child_tokens )* }
                 }.into();
-                NodeRef($nodes.insert(child_node))
+                $crate::storage::NodeRef::new($nodes.insert(child_node))
             }
         )
     };
 
     ( @( $nodes:expr, $values:expr ) leaf { $key:expr => $value:expr } ) => {
         $crate::nodes::LeafNode::<Vec<u8>, _, sha3::Keccak256>::new(
-            $crate::ValueRef($values.insert(($key, $value)))
+            $crate::storage::ValueRef::new($values.insert(($key, $value)))
         )
     };
 }

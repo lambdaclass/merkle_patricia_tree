@@ -170,20 +170,20 @@ impl<'a> NibbleSlice<'a> {
         self_slice == othr_slice
     }
 
-    pub fn peek(&self) -> Option<Nibble> {
-        self.data.get(self.offset >> 1).map(|byte| {
-            let byte = if self.offset % 2 != 0 {
-                byte & 0x0F
-            } else {
-                byte >> 4
-            };
+    // pub fn peek(&self) -> Option<Nibble> {
+    //     self.data.get(self.offset >> 1).map(|byte| {
+    //         let byte = if self.offset % 2 != 0 {
+    //             byte & 0x0F
+    //         } else {
+    //             byte >> 4
+    //         };
 
-            match Nibble::try_from(byte) {
-                Ok(x) => x,
-                Err(_) => unreachable!(),
-            }
-        })
-    }
+    //         match Nibble::try_from(byte) {
+    //             Ok(x) => x,
+    //             Err(_) => unreachable!(),
+    //         }
+    //     })
+    // }
 }
 
 impl<'a> AsRef<[u8]> for NibbleSlice<'a> {
@@ -221,6 +221,7 @@ pub struct NibbleVec {
 }
 
 impl NibbleVec {
+    #[cfg(test)]
     pub fn new() -> Self {
         NibbleVec {
             data: Default::default(),
@@ -229,6 +230,7 @@ impl NibbleVec {
         }
     }
 
+    #[cfg(test)]
     pub fn from_nibbles(data_iter: impl Iterator<Item = Nibble>) -> Self {
         let mut last_is_half = false;
         let mut data = SmallVec::new();
