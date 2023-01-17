@@ -123,8 +123,8 @@ where
     }
 
     pub fn compute_hash(
-        &mut self,
-        nodes: &mut NodesStorage<P, V, H>,
+        &self,
+        nodes: &NodesStorage<P, V, H>,
         values: &ValuesStorage<P, V>,
         key_offset: usize,
     ) -> NodeHashRef<H> {
@@ -140,12 +140,11 @@ where
                                 .get(**choice)
                                 .expect("inconsistent internal tree structure");
 
-                            let child_hash_ref = child_node
-                                .compute_hash(nodes, values, key_offset + 1)
-                                .as_ref();
+                            let child_hash_ref =
+                                child_node.compute_hash(nodes, values, key_offset + 1);
                             NodeHasher::<H>::bytes_len(
-                                child_hash_ref.len(),
-                                child_hash_ref.first().copied().unwrap_or_default(),
+                                child_hash_ref.as_ref().len(),
+                                child_hash_ref.as_ref().first().copied().unwrap_or_default(),
                             )
                         })
                         .unwrap_or(1)
@@ -163,26 +162,21 @@ where
                 );
             }
 
-            let mut hasher = NodeHasher::new(&mut self.hash);
+            let mut hasher = NodeHasher::new(&self.hash);
             hasher.write_list_header(children_len);
 
-            self.choices
-                .iter()
-                .map(|choice| {
-                    choice
-                        .is_valid()
-                        .then(|| {
-                            let child_node = nodes
-                                .get(**choice)
-                                .expect("inconsistent internal tree structure");
+            self.choices.iter().for_each(|choice| {
+                if choice.is_valid() {
+                    let child_node = nodes
+                        .get(**choice)
+                        .expect("inconsistent internal tree structure");
 
-                            child_node
-                                .compute_hash(nodes, values, key_offset + 1)
-                                .as_ref()
-                        })
-                        .unwrap_or(&[])
-                })
-                .for_each(|x| hasher.write_bytes(x));
+                    let child_hash = child_node.compute_hash(nodes, values, key_offset + 1);
+                    hasher.write_bytes(child_hash.as_ref());
+                } else {
+                    hasher.write_bytes(&[]);
+                }
+            });
 
             if self.value_ref.is_valid() {
                 let (_, value) = values

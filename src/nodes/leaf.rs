@@ -144,8 +144,8 @@ where
     }
 
     pub fn compute_hash(
-        &mut self,
-        _nodes: &mut NodesStorage<P, V, H>,
+        &self,
+        _nodes: &NodesStorage<P, V, H>,
         values: &ValuesStorage<P, V>,
         key_offset: usize,
     ) -> NodeHashRef<H> {
@@ -154,20 +154,17 @@ where
                 .get(*self.value_ref)
                 .expect("inconsistent internal tree structure");
 
-            let key_len = NodeHasher::<H>::path_len_slice(
-                &{
-                    let mut key_slice = NibbleSlice::new(key.as_ref());
-                    key_slice.offset_add(key_offset);
-                    key_slice
-                },
-                PathKind::Leaf,
-            );
+            let key_len = NodeHasher::<H>::path_len_slice(&{
+                let mut key_slice = NibbleSlice::new(key.as_ref());
+                key_slice.offset_add(key_offset);
+                key_slice
+            });
             let value_len = NodeHasher::<H>::bytes_len(
                 value.as_ref().len(),
                 value.as_ref().first().copied().unwrap_or_default(),
             );
 
-            let mut hasher = NodeHasher::new(&mut self.hash);
+            let mut hasher = NodeHasher::new(&self.hash);
             hasher.write_list_header(key_len + value_len);
             hasher.write_path_slice(
                 &{
@@ -327,13 +324,13 @@ mod test {
 
     #[test]
     fn compute_hash() {
-        let (mut nodes, mut values) = pmt_state!(Vec<u8>);
+        let (nodes, mut values) = pmt_state!(Vec<u8>);
 
-        let mut node = pmt_node! { @(nodes, values)
+        let node = pmt_node! { @(nodes, values)
             leaf { b"key".to_vec() => b"value".to_vec() }
         };
 
-        let node_hash_ref = node.compute_hash(&mut nodes, &values, 0);
+        let node_hash_ref = node.compute_hash(&nodes, &values, 0);
         assert_eq!(
             node_hash_ref.as_ref(),
             &[0xCB, 0x84, 0x20, 0x6B, 0x65, 0x79, 0x85, 0x76, 0x61, 0x6C, 0x75, 0x65],
@@ -342,13 +339,13 @@ mod test {
 
     #[test]
     fn compute_hash_long() {
-        let (mut nodes, mut values) = pmt_state!(Vec<u8>);
+        let (nodes, mut values) = pmt_state!(Vec<u8>);
 
-        let mut node = pmt_node! { @(nodes, values)
+        let node = pmt_node! { @(nodes, values)
             leaf { b"key".to_vec() => b"a comparatively long value".to_vec() }
         };
 
-        let node_hash_ref = node.compute_hash(&mut nodes, &values, 0);
+        let node_hash_ref = node.compute_hash(&nodes, &values, 0);
         assert_eq!(
             node_hash_ref.as_ref(),
             &[

@@ -11,10 +11,7 @@ use self::{
 use digest::{Digest, Output};
 use hashing::NodeHashRef;
 use slab::Slab;
-use std::{
-    borrow::Cow,
-    mem::{replace, size_of},
-};
+use std::mem::{replace, size_of};
 
 mod dump;
 mod hashing;
@@ -38,6 +35,8 @@ where
     nodes: NodesStorage<P, V, H>,
     /// Stores the actual nodes' hashed paths and values.
     values: ValuesStorage<P, V>,
+
+    hash: (bool, Output<H>),
 }
 
 impl<P, V, H> PatriciaMerkleTree<P, V, H>
@@ -52,6 +51,7 @@ where
             root_ref: NodeRef::default(),
             nodes: Slab::new(),
             values: Slab::new(),
+            hash: (false, Default::default()),
         }
     }
 
@@ -74,6 +74,9 @@ where
 
     /// Insert a value into the tree.
     pub fn insert(&mut self, path: P, value: V) -> Option<V> {
+        // Mark hash as dirty.
+        self.hash.0 = false;
+
         match self.nodes.try_remove(*self.root_ref) {
             Some(root_node) => {
                 // If the tree is not empty, call the root node's insertion logic.
@@ -121,18 +124,27 @@ where
     }
 
     /// Return the root hash of the tree (or recompute if needed).
-    pub fn compute_hash(&mut self) -> Option<Cow<Output<H>>> {
-        self.root_ref.is_valid().then(|| {
-            let root_node = self
-                .nodes
-                .get_mut(*self.root_ref)
-                .expect("inconsistent internal tree structure");
+    pub fn compute_hash(&mut self) -> Option<&Output<H>> {
+        if self.hash.0 {
+            Some(&self.hash.1)
+        } else {
+            self.root_ref.is_valid().then(|| {
+                let root_node = self
+                    .nodes
+                    .get(*self.root_ref)
+                    .expect("inconsistent internal tree structure");
 
-            match root_node.compute_hash(&mut self.nodes, &self.values, 0) {
-                NodeHashRef::Inline(_) => todo!(),
-                NodeHashRef::Hashed(x) => Cow::Borrowed(x),
-            }
-        })
+                match root_node.compute_hash(&self.nodes, &self.values, 0) {
+                    NodeHashRef::Inline(x) => {
+                        H::new().chain_update(&*x).finalize_into(&mut self.hash.1)
+                    }
+                    NodeHashRef::Hashed(x) => self.hash.1.copy_from_slice(&x),
+                }
+
+                self.hash.0 = true;
+                &self.hash.1
+            })
+        }
     }
 
     /// Calculate approximated memory usage (both used and allocated).

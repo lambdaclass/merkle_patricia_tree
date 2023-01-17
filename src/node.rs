@@ -57,8 +57,8 @@ where
     }
 
     pub fn compute_hash(
-        &mut self,
-        nodes: &mut NodesStorage<P, V, H>,
+        &self,
+        nodes: &NodesStorage<P, V, H>,
         values: &ValuesStorage<P, V>,
         key_offset: usize,
     ) -> NodeHashRef<H> {

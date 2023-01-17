@@ -146,31 +146,29 @@ where
     }
 
     pub fn compute_hash(
-        &mut self,
-        nodes: &mut NodesStorage<P, V, H>,
+        &self,
+        nodes: &NodesStorage<P, V, H>,
         values: &ValuesStorage<P, V>,
         key_offset: usize,
     ) -> NodeHashRef<H> {
         self.hash.extract_ref().unwrap_or_else(|| {
-            let mut child_node = nodes
-                .try_remove(*self.child_ref)
+            let child_node = nodes
+                .get(*self.child_ref)
                 .expect("inconsistent internal tree structure");
 
             let child_hash_ref =
                 child_node.compute_hash(nodes, values, key_offset + self.prefix.iter().count());
 
-            let prefix_len = NodeHasher::<H>::path_len_vec(&self.prefix, PathKind::Extension);
+            let prefix_len = NodeHasher::<H>::path_len_vec(&self.prefix);
             let child_len = NodeHasher::<H>::bytes_len(
                 child_hash_ref.as_ref().len(),
                 child_hash_ref.as_ref().first().copied().unwrap_or_default(),
             );
 
-            let mut hasher = NodeHasher::new(&mut self.hash);
+            let mut hasher = NodeHasher::new(&self.hash);
             hasher.write_list_header(prefix_len + child_len);
             hasher.write_path_vec(&self.prefix, PathKind::Extension);
             hasher.write_bytes(child_hash_ref.as_ref());
-
-            self.child_ref = NodeRef::new(nodes.insert(child_node));
             hasher.finalize()
         })
     }
