@@ -1,8 +1,8 @@
 use super::LeafNode;
 use crate::{
+    hashing::{write_list, write_slice, DigestBuf},
     nibble::NibbleSlice,
     node::{InsertAction, Node},
-    util::{write_list, write_slice, DigestBuf, INVALID_REF},
     NodeRef, NodesStorage, ValueRef, ValuesStorage,
 };
 use digest::{Digest, Output};
@@ -55,28 +55,27 @@ where
             .map(usize::from)
             .and_then(|choice| {
                 // Delegate to children if present.
-                match self.choices[choice] {
-                    NodeRef(INVALID_REF) => None,
-                    child_ref => {
-                        let child_node = nodes
-                            .get(child_ref.0)
-                            .expect("inconsistent internal tree structure");
+                let child_ref = self.choices[choice];
+                if child_ref.is_valid() {
+                    let child_node = nodes
+                        .get(*child_ref)
+                        .expect("inconsistent internal tree structure");
 
-                        child_node.get(nodes, values, path)
-                    }
+                    child_node.get(nodes, values, path)
+                } else {
+                    None
                 }
             })
             .or_else(|| {
                 // Return internal value if present.
-                match self.value_ref {
-                    ValueRef(INVALID_REF) => None,
-                    value_ref => {
-                        let (_, value) = values
-                            .get(value_ref.0)
-                            .expect("inconsistent internal tree structure");
+                if self.value_ref.is_valid() {
+                    let (_, value) = values
+                        .get(*self.value_ref)
+                        .expect("inconsistent internal tree structure");
 
-                        Some(value)
-                    }
+                    Some(value)
+                } else {
+                    None
                 }
             })
     }
@@ -94,27 +93,30 @@ where
 
         let insert_action = match path.next() {
             Some(choice) => match &mut self.choices[choice as usize] {
-                choice_ref if *choice_ref == NodeRef(INVALID_REF) => {
+                choice_ref if !choice_ref.is_valid() => {
                     let child_ref = nodes.insert(LeafNode::new(Default::default()).into());
-                    *choice_ref = NodeRef(child_ref);
+                    *choice_ref = NodeRef::new(child_ref);
 
-                    InsertAction::Insert(NodeRef(child_ref))
+                    InsertAction::Insert(NodeRef::new(child_ref))
                 }
                 choice_ref => {
                     let child_node = nodes
-                        .try_remove(choice_ref.0)
+                        .try_remove(**choice_ref)
                         .expect("inconsistent internal tree structure");
 
                     let (child_node, insert_action) = child_node.insert(nodes, values, path);
-                    *choice_ref = NodeRef(nodes.insert(child_node));
+                    *choice_ref = NodeRef::new(nodes.insert(child_node));
 
                     insert_action.quantize_self(*choice_ref)
                 }
             },
-            None => match self.value_ref {
-                ValueRef(INVALID_REF) => InsertAction::InsertSelf,
-                value_ref => InsertAction::Replace(value_ref),
-            },
+            None => {
+                if self.value_ref.is_valid() {
+                    InsertAction::Replace(self.value_ref)
+                } else {
+                    InsertAction::InsertSelf
+                }
+            }
         };
 
         (self.into(), insert_action)
@@ -130,29 +132,28 @@ where
             let mut digest_buf = DigestBuf::<H>::new();
 
             let mut payload = Vec::new();
-            for choice in &mut self.choices {
-                match choice {
-                    NodeRef(INVALID_REF) => payload.push(0x80),
-                    child_ref => {
-                        let mut child_node = nodes
-                            .try_remove(child_ref.0)
-                            .expect("inconsistent internal tree structure");
+            for child_ref in &mut self.choices {
+                if child_ref.is_valid() {
+                    let mut child_node = nodes
+                        .try_remove(**child_ref)
+                        .expect("inconsistent internal tree structure");
 
-                        payload.extend_from_slice(child_node.compute_hash(
-                            nodes,
-                            values,
-                            key_offset + 1,
-                        ));
+                    payload.extend_from_slice(child_node.compute_hash(
+                        nodes,
+                        values,
+                        key_offset + 1,
+                    ));
 
-                        *child_ref = NodeRef(nodes.insert(child_node));
-                    }
+                    *child_ref = NodeRef::new(nodes.insert(child_node));
+                } else {
+                    payload.push(0x80);
                 }
             }
 
-            if self.value_ref != ValueRef(INVALID_REF) {
+            if self.value_ref.is_valid() {
                 write_slice(
                     values
-                        .get(self.value_ref.0)
+                        .get(*self.value_ref)
                         .expect("inconsistent internal tree structure")
                         .1
                         .as_ref(),
@@ -183,8 +184,8 @@ mod test {
         let node = BranchNode::<Vec<u8>, Vec<u8>, Keccak256>::new({
             let mut choices = [Default::default(); 16];
 
-            choices[2] = NodeRef(2);
-            choices[5] = NodeRef(5);
+            choices[2] = NodeRef::new(2);
+            choices[5] = NodeRef::new(5);
 
             choices
         });
@@ -194,10 +195,10 @@ mod test {
             [
                 Default::default(),
                 Default::default(),
-                NodeRef(2),
+                NodeRef::new(2),
                 Default::default(),
                 Default::default(),
-                NodeRef(5),
+                NodeRef::new(5),
                 Default::default(),
                 Default::default(),
                 Default::default(),
@@ -292,7 +293,7 @@ mod test {
         };
 
         // TODO: Check node and children.
-        assert_eq!(insert_action, InsertAction::Insert(NodeRef(2)));
+        assert_eq!(insert_action, InsertAction::Insert(NodeRef::new(2)));
     }
 
     #[test]

@@ -3,7 +3,6 @@
 use crate::{
     node::Node,
     nodes::{BranchNode, ExtensionNode, LeafNode},
-    util::INVALID_REF,
     NodeRef, PatriciaMerkleTree, ValueRef,
 };
 use digest::Digest;
@@ -41,12 +40,11 @@ where
         let indent = repeat(' ').take(self.indent).collect::<String>();
         write!(self.writer, "{indent}").unwrap();
 
-        match self.parent.root_ref {
-            NodeRef(INVALID_REF) => writeln!(self.writer, "(nil)").unwrap(),
-            _ => {
-                self.write_node(self.parent.root_ref);
-                writeln!(self.writer).unwrap();
-            }
+        if !self.parent.root_ref.is_valid() {
+            writeln!(self.writer, "(nil)").unwrap()
+        } else {
+            self.write_node(self.parent.root_ref);
+            writeln!(self.writer).unwrap();
         }
     }
 
@@ -54,7 +52,7 @@ where
         let node = self
             .parent
             .nodes
-            .get(node_ref.0)
+            .get(*node_ref)
             .expect("inconsistent internal tree structure");
 
         match node {
@@ -69,7 +67,7 @@ where
         self.indent += 4;
         let indent = repeat(' ').take(self.indent).collect::<String>();
         for (index, choice) in branch_node.choices.iter().enumerate() {
-            if *choice == NodeRef(INVALID_REF) {
+            if !choice.is_valid() {
                 continue;
             }
 
@@ -80,13 +78,13 @@ where
         self.indent -= 4;
 
         let indent = repeat(' ').take(self.indent).collect::<String>();
-        if branch_node.value_ref == ValueRef(INVALID_REF) {
+        if !branch_node.value_ref.is_valid() {
             write!(self.writer, "{indent}}}").unwrap();
         } else {
             let (key, value) = self
                 .parent
                 .values
-                .get(branch_node.value_ref.0)
+                .get(*branch_node.value_ref)
                 .expect("inconsistent internal tree structure");
 
             let key = key.as_ref();
@@ -118,7 +116,7 @@ where
         let (key, value) = self
             .parent
             .values
-            .get(leaf_node.value_ref.0)
+            .get(*leaf_node.value_ref)
             .expect("inconsistent internal tree structure");
 
         let key = key.as_ref();

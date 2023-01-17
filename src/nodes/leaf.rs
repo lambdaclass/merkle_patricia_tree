@@ -1,8 +1,8 @@
 use super::{BranchNode, ExtensionNode};
 use crate::{
+    hashing::{encode_path, write_list, write_slice, DigestBuf},
     nibble::NibbleSlice,
     node::{InsertAction, Node},
-    util::{encode_path, write_list, write_slice, DigestBuf},
     NodeRef, NodesStorage, ValueRef, ValuesStorage,
 };
 use digest::{Digest, Output};
@@ -49,7 +49,7 @@ where
         // Otherwise, no value is present.
 
         let (value_path, value) = values
-            .get(self.value_ref.0)
+            .get(*self.value_ref)
             .expect("inconsistent internal tree structure");
 
         path.cmp_rest(value_path.as_ref()).then_some(value)
@@ -71,7 +71,7 @@ where
         self.hash.0 = 0;
 
         let (value_path, _) = values
-            .get(self.value_ref.0)
+            .get(*self.value_ref)
             .expect("inconsistent internal tree structure");
 
         if path.cmp_rest(value_path.as_ref()) {
@@ -96,7 +96,7 @@ where
                         // TODO: Dedicated method.
                         choices[NibbleSlice::new(value_path.as_ref())
                             .nth(absolute_offset)
-                            .unwrap() as usize] = NodeRef(nodes.insert(self.into()));
+                            .unwrap() as usize] = NodeRef::new(nodes.insert(self.into()));
                         choices
                     }),
                     InsertAction::InsertSelf,
@@ -106,12 +106,12 @@ where
                 let mut branch_node = BranchNode::new({
                     let mut choices = [Default::default(); 16];
                     // TODO: Dedicated method.
-                    choices[path_branch.next().unwrap() as usize] = NodeRef(child_ref);
+                    choices[path_branch.next().unwrap() as usize] = NodeRef::new(child_ref);
                     choices
                 });
                 branch_node.update_value_ref(self.value_ref);
 
-                (branch_node, InsertAction::Insert(NodeRef(child_ref)))
+                (branch_node, InsertAction::Insert(NodeRef::new(child_ref)))
             } else {
                 let child_ref = nodes.insert(LeafNode::new(Default::default()).into());
 
@@ -121,17 +121,17 @@ where
                         // TODO: Dedicated method.
                         choices[NibbleSlice::new(value_path.as_ref())
                             .nth(absolute_offset)
-                            .unwrap() as usize] = NodeRef(nodes.insert(self.into()));
+                            .unwrap() as usize] = NodeRef::new(nodes.insert(self.into()));
                         // TODO: Dedicated method.
-                        choices[path_branch.next().unwrap() as usize] = NodeRef(child_ref);
+                        choices[path_branch.next().unwrap() as usize] = NodeRef::new(child_ref);
                         choices
                     }),
-                    InsertAction::Insert(NodeRef(child_ref)),
+                    InsertAction::Insert(NodeRef::new(child_ref)),
                 )
             };
 
             let final_node = if offset != 0 {
-                let branch_ref = NodeRef(nodes.insert(branch_node.into()));
+                let branch_ref = NodeRef::new(nodes.insert(branch_node.into()));
                 insert_action = insert_action.quantize_self(branch_ref);
 
                 ExtensionNode::new(path.split_to_vec(offset), branch_ref).into()
@@ -151,7 +151,7 @@ where
     ) -> &[u8] {
         if self.hash.0 == 0 {
             let (key, value) = values
-                .get(self.value_ref.0)
+                .get(*self.value_ref)
                 .expect("inconsistent internal tree structure");
 
             let mut digest_buf = DigestBuf::<H>::new();
@@ -179,13 +179,13 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{pmt_node, pmt_state, util::INVALID_REF};
+    use crate::{pmt_node, pmt_state};
     use sha3::Keccak256;
 
     #[test]
     fn new() {
         let node = LeafNode::<Vec<u8>, Vec<u8>, Keccak256>::new(Default::default());
-        assert_eq!(node.value_ref, ValueRef(INVALID_REF));
+        assert_eq!(node.value_ref, ValueRef::default());
     }
 
     #[test]
@@ -232,9 +232,9 @@ mod test {
             _ => panic!("expected a leaf node"),
         };
 
-        assert_eq!(node.value_ref, ValueRef(0));
+        assert_eq!(node.value_ref, ValueRef::new(0));
         assert_eq!(node.hash.0, 0);
-        assert_eq!(insert_action, InsertAction::Replace(ValueRef(0)));
+        assert_eq!(insert_action, InsertAction::Replace(ValueRef::new(0)));
     }
 
     #[test]
@@ -252,7 +252,7 @@ mod test {
         };
 
         // TODO: Check branch.
-        assert_eq!(insert_action, InsertAction::Insert(NodeRef(0)));
+        assert_eq!(insert_action, InsertAction::Insert(NodeRef::new(0)));
     }
 
     #[test]
@@ -270,7 +270,7 @@ mod test {
         };
 
         // TODO: Check extension (and child branch).
-        assert_eq!(insert_action, InsertAction::Insert(NodeRef(0)));
+        assert_eq!(insert_action, InsertAction::Insert(NodeRef::new(0)));
     }
 
     #[test]
@@ -289,7 +289,7 @@ mod test {
         };
 
         // TODO: Check extension (and children).
-        assert_eq!(insert_action, InsertAction::Insert(NodeRef(0)));
+        assert_eq!(insert_action, InsertAction::Insert(NodeRef::new(0)));
     }
 
     #[test]
@@ -307,7 +307,7 @@ mod test {
         };
 
         // TODO: Check extension (and children).
-        assert_eq!(insert_action, InsertAction::Insert(NodeRef(1)));
+        assert_eq!(insert_action, InsertAction::Insert(NodeRef::new(1)));
     }
 
     // An insertion that returns branch [value=(x)] -> leaf (y) is not possible because of the key
@@ -317,4 +317,35 @@ mod test {
     //
     // Because of that, the two tests that would check those cases are neither necessary nor
     // possible.
+
+    #[test]
+    fn compute_hash() {
+        let (mut nodes, mut values) = pmt_state!(Vec<u8>);
+
+        let mut node = pmt_node! { @(nodes, values)
+            leaf { b"key".to_vec() => b"value".to_vec() }
+        };
+
+        let node_hash_ref = node.compute_hash(&mut nodes, &values, 0);
+        assert_eq!(
+            node_hash_ref,
+            &[0xCB, 0x84, 0x20, 0x6B, 0x65, 0x79, 0x85, 0x76, 0x61, 0x6C, 0x75, 0x65],
+        );
+    }
+
+    #[test]
+    fn compute_hash_long() {
+        let (mut nodes, mut values) = pmt_state!(Vec<u8>);
+
+        let mut node = pmt_node! { @(nodes, values)
+            leaf { b"key".to_vec() => b"a comparatively long value".to_vec() }
+        };
+
+        let node_hash_ref = node.compute_hash(&mut nodes, &values, 0);
+        println!("{node_hash_ref:02X?}");
+        assert_eq!(
+            node_hash_ref,
+            &[0xCB, 0x84, 0x20, 0x6B, 0x65, 0x79, 0x85, 0x76, 0x61, 0x6C, 0x75, 0x65],
+        );
+    }
 }

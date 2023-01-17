@@ -1,9 +1,9 @@
 use super::BranchNode;
 use crate::{
+    hashing::{encode_path, write_list, write_slice, DigestBuf},
     nibble::{NibbleSlice, NibbleVec},
     node::{InsertAction, Node},
     nodes::LeafNode,
-    util::{encode_path, write_list, write_slice, DigestBuf, INVALID_REF},
     NodeRef, NodesStorage, ValueRef, ValuesStorage,
 };
 use digest::{Digest, Output};
@@ -52,7 +52,7 @@ where
         path.skip_prefix(&self.prefix)
             .then(|| {
                 let child_node = nodes
-                    .get(self.child_ref.0)
+                    .get(*self.child_ref)
                     .expect("inconsistent internal tree structure");
 
                 child_node.get(nodes, values, path)
@@ -81,11 +81,11 @@ where
 
         if path.skip_prefix(&self.prefix) {
             let child_node = nodes
-                .try_remove(self.child_ref.0)
+                .try_remove(*self.child_ref)
                 .expect("inconsistent internal tree structure");
 
             let (child_node, insert_action) = child_node.insert(nodes, values, path);
-            self.child_ref = NodeRef(nodes.insert(child_node));
+            self.child_ref = NodeRef::new(nodes.insert(child_node));
 
             let insert_action = insert_action.quantize_self(self.child_ref);
             (self.into(), insert_action)
@@ -113,19 +113,19 @@ where
                 .map(|right_prefix| {
                     nodes.insert(ExtensionNode::new(right_prefix, self.child_ref).into())
                 })
-                .unwrap_or(self.child_ref.0);
+                .unwrap_or(*self.child_ref);
 
             // Branch node (child is prefix right or self.child_ref).
             let mut branch_node = BranchNode::new({
                 let mut choices = [Default::default(); 16];
-                choices[choice as usize] = NodeRef(right_prefix_node);
+                choices[choice as usize] = NodeRef::new(right_prefix_node);
                 choices
             });
 
             // Prefix left node (if any, child is branch_node).
             match left_prefix {
                 Some(left_prefix) => {
-                    let branch_ref = NodeRef(nodes.insert(branch_node.into()));
+                    let branch_ref = NodeRef::new(nodes.insert(branch_node.into()));
 
                     (
                         ExtensionNode::new(left_prefix, branch_ref).into(),
@@ -135,7 +135,7 @@ where
                 None => match path.next() {
                     Some(choice) => {
                         let child_ref =
-                            NodeRef(nodes.insert(LeafNode::new(ValueRef(INVALID_REF)).into()));
+                            NodeRef::new(nodes.insert(LeafNode::new(ValueRef::default()).into()));
                         branch_node.choices[choice as usize] = child_ref;
                         (branch_node.into(), InsertAction::Insert(child_ref))
                     }
@@ -160,7 +160,7 @@ where
             write_slice(&prefix, &mut payload);
 
             let mut child = nodes
-                .try_remove(self.child_ref.0)
+                .try_remove(*self.child_ref)
                 .expect("inconsistent internal tree structure");
             let child_hash =
                 child.compute_hash(nodes, values, key_offset + self.prefix.iter().count());
@@ -177,7 +177,7 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{nibble::Nibble, pmt_node, pmt_state, util::INVALID_REF};
+    use crate::{nibble::Nibble, pmt_node, pmt_state};
     use sha3::Keccak256;
 
     #[test]
@@ -186,7 +186,7 @@ mod test {
             ExtensionNode::<Vec<u8>, Vec<u8>, Keccak256>::new(NibbleVec::new(), Default::default());
 
         assert_eq!(node.prefix.iter().count(), 0);
-        assert_eq!(node.child_ref, NodeRef(INVALID_REF));
+        assert_eq!(node.child_ref, NodeRef::default());
     }
 
     #[test]
@@ -249,7 +249,7 @@ mod test {
 
         // TODO: Check children.
         assert!(node.prefix.iter().eq([Nibble::V0].into_iter()));
-        assert_eq!(insert_action, InsertAction::Insert(NodeRef(2)));
+        assert_eq!(insert_action, InsertAction::Insert(NodeRef::new(2)));
     }
 
     #[test]
@@ -270,7 +270,7 @@ mod test {
         };
 
         // TODO: Check node and children.
-        assert_eq!(insert_action, InsertAction::Insert(NodeRef(3)));
+        assert_eq!(insert_action, InsertAction::Insert(NodeRef::new(3)));
     }
 
     #[test]
@@ -291,7 +291,7 @@ mod test {
         };
 
         // TODO: Check node and children.
-        assert_eq!(insert_action, InsertAction::Insert(NodeRef(4)));
+        assert_eq!(insert_action, InsertAction::Insert(NodeRef::new(4)));
     }
 
     #[test]
@@ -312,7 +312,7 @@ mod test {
         };
 
         // TODO: Check node and children.
-        assert_eq!(insert_action, InsertAction::Insert(NodeRef(3)));
+        assert_eq!(insert_action, InsertAction::Insert(NodeRef::new(3)));
     }
 
     #[test]
@@ -333,6 +333,6 @@ mod test {
         };
 
         // TODO: Check node and children.
-        assert_eq!(insert_action, InsertAction::Insert(NodeRef(3)));
+        assert_eq!(insert_action, InsertAction::Insert(NodeRef::new(3)));
     }
 }

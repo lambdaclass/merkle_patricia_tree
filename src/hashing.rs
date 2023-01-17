@@ -1,8 +1,9 @@
 use crate::Nibble;
 use digest::{Digest, Output};
-use std::io::{Cursor, Write};
-
-pub const INVALID_REF: usize = usize::MAX;
+use std::{
+    io::{Cursor, Write},
+    iter::once,
+};
 
 pub fn write_slice(value: &[u8], mut target: impl Write) {
     if value.len() <= 55 {
@@ -37,7 +38,7 @@ pub fn write_list(payload: &[u8], mut target: impl Write) {
 // TODO: Improve performance.
 pub fn encode_path(nibbles: &[Nibble]) -> Vec<u8> {
     let flag = 0x20;
-    if nibbles.len() % 2 == 1 {
+    if nibbles.len() % 2 != 0 {
         let flag = flag | 0x10;
 
         let mut target = Vec::new();
@@ -51,9 +52,11 @@ pub fn encode_path(nibbles: &[Nibble]) -> Vec<u8> {
         target
     } else {
         Vec::from_iter(
-            nibbles
-                .chunks(2)
-                .map(|x| (u8::from(x[0]) << 4) | u8::from(x[1])),
+            once(flag).chain(
+                nibbles
+                    .chunks(2)
+                    .map(|x| (u8::from(x[0]) << 4) | u8::from(x[1])),
+            ),
         )
     }
 }
@@ -110,6 +113,7 @@ where
     H: Digest,
 {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        println!("buf = {buf:02X?}");
         let mut pos = 0;
         while pos != buf.len() {
             pos += self.buffer.write(&buf[pos..])?;
