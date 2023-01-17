@@ -15,7 +15,7 @@ where
     V: AsRef<[u8]>,
     H: Digest,
 {
-    value_ref: ValueRef,
+    pub(crate) value_ref: ValueRef,
 
     hash: (usize, Output<H>),
     phantom: PhantomData<(P, V, H)>,
@@ -89,7 +89,7 @@ where
             path_branch.offset_add(offset);
 
             let absolute_offset = path_branch.offset();
-            let (branch_node, mut insert_action) = if offset == 2 * path.as_ref().len() {
+            let (branch_node, mut insert_action) = if absolute_offset == 2 * path.as_ref().len() {
                 (
                     BranchNode::new({
                         let mut choices = [Default::default(); 16];
@@ -101,7 +101,7 @@ where
                     }),
                     InsertAction::InsertSelf,
                 )
-            } else if offset == 2 * value_path.as_ref().len() {
+            } else if absolute_offset == 2 * value_path.as_ref().len() {
                 let child_ref = nodes.insert(LeafNode::new(Default::default()).into());
                 let mut branch_node = BranchNode::new({
                     let mut choices = [Default::default(); 16];

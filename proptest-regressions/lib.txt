@@ -5,3 +5,4 @@
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
 cc 72044483941df7c265fa4a9635fd6c235f7790f35d878277fea7955387e59fea # shrinks to paths = {[0], [200], [200, 0]}
+cc 4f3f0c44fdba16d943c33475dc4fa4431123ca274d17e3529dc7aa778de5655b # shrinks to paths = {[0], [1], [16], [25], [25, 0], [26]}

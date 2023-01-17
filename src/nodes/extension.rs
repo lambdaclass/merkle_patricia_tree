@@ -2,8 +2,9 @@ use super::BranchNode;
 use crate::{
     nibble::{NibbleSlice, NibbleVec},
     node::{InsertAction, Node},
-    util::{encode_path, write_list, write_slice, DigestBuf},
-    NodeRef, NodesStorage, ValuesStorage,
+    nodes::LeafNode,
+    util::{encode_path, write_list, write_slice, DigestBuf, INVALID_REF},
+    NodeRef, NodesStorage, ValueRef, ValuesStorage,
 };
 use digest::{Digest, Output};
 use std::{io::Cursor, marker::PhantomData};
@@ -15,10 +16,10 @@ where
     V: AsRef<[u8]>,
     H: Digest,
 {
-    prefix: NibbleVec,
+    pub(crate) prefix: NibbleVec,
     // The child node may only be a branch, but it's not included directly by value to avoid
     // inflating `Node`'s size too much.
-    child_ref: NodeRef,
+    pub(crate) child_ref: NodeRef,
 
     hash: (usize, Output<H>),
     phantom: PhantomData<(P, V, H)>,
@@ -115,24 +116,31 @@ where
                 .unwrap_or(self.child_ref.0);
 
             // Branch node (child is prefix right or self.child_ref).
-            let branch_node = BranchNode::new({
+            let mut branch_node = BranchNode::new({
                 let mut choices = [Default::default(); 16];
                 choices[choice as usize] = NodeRef(right_prefix_node);
                 choices
-            })
-            .into();
+            });
 
             // Prefix left node (if any, child is branch_node).
             match left_prefix {
                 Some(left_prefix) => {
-                    let branch_ref = NodeRef(nodes.insert(branch_node));
+                    let branch_ref = NodeRef(nodes.insert(branch_node.into()));
 
                     (
                         ExtensionNode::new(left_prefix, branch_ref).into(),
                         InsertAction::Insert(branch_ref),
                     )
                 }
-                None => (branch_node, InsertAction::InsertSelf),
+                None => match path.next() {
+                    Some(choice) => {
+                        let child_ref =
+                            NodeRef(nodes.insert(LeafNode::new(ValueRef(INVALID_REF)).into()));
+                        branch_node.choices[choice as usize] = child_ref;
+                        (branch_node.into(), InsertAction::Insert(child_ref))
+                    }
+                    None => (branch_node.into(), InsertAction::InsertSelf),
+                },
             }
         }
     }
@@ -262,7 +270,7 @@ mod test {
         };
 
         // TODO: Check node and children.
-        assert_eq!(insert_action, InsertAction::InsertSelf);
+        assert_eq!(insert_action, InsertAction::Insert(NodeRef(3)));
     }
 
     #[test]
@@ -283,7 +291,7 @@ mod test {
         };
 
         // TODO: Check node and children.
-        assert_eq!(insert_action, InsertAction::InsertSelf);
+        assert_eq!(insert_action, InsertAction::Insert(NodeRef(4)));
     }
 
     #[test]

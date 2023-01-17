@@ -16,8 +16,8 @@ where
     H: Digest,
 {
     // The node zero is always the root, which cannot be a child.
-    choices: [NodeRef; 16],
-    value_ref: ValueRef,
+    pub(crate) choices: [NodeRef; 16],
+    pub(crate) value_ref: ValueRef,
 
     hash: (usize, Output<H>),
     phantom: PhantomData<(P, V, H)>,

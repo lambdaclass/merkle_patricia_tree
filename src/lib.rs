@@ -18,6 +18,7 @@ pub mod nibble;
 mod node;
 mod nodes;
 mod util;
+mod dump;
 
 type NodesStorage<P, V, H> = Slab<Node<P, V, H>>;
 type ValuesStorage<P, V> = Slab<(P, V)>;
@@ -361,20 +362,34 @@ mod test {
     }
 
     #[test]
-    fn display_sizes() {
-        println!(
-            "sizeof::<BranchNode>() = {}",
-            std::mem::size_of::<crate::nodes::BranchNode<[u8; 0], [u8; 0], Keccak256>>()
-        );
-        println!(
-            "sizeof::<ExtensionNode>() = {}",
-            std::mem::size_of::<crate::nodes::ExtensionNode<[u8; 0], [u8; 0], Keccak256>>()
-        );
-        println!(
-            "sizeof::<LeafNode>() = {}",
-            std::mem::size_of::<crate::nodes::LeafNode<[u8; 0], [u8; 0], Keccak256>>()
-        );
+    fn proptest_regression_72044483941df7c265fa4a9635fd6c235f7790f35d878277fea7955387e59fea() {
+        let mut tree = PatriciaMerkleTree::<Vec<u8>, Vec<u8>, Keccak256>::new();
 
-        todo!()
+        tree.insert(vec![0x00], vec![0x00]);
+        tree.insert(vec![0xC8], vec![0xC8]);
+        tree.insert(vec![0xC8, 0x00], vec![0xC8, 0x00]);
+
+        assert_eq!(tree.get(&vec![0x00]), Some(&vec![0x00]));
+        assert_eq!(tree.get(&vec![0xC8]), Some(&vec![0xC8]));
+        assert_eq!(tree.get(&vec![0xC8, 0x00]), Some(&vec![0xC8, 0x00]));
+    }
+
+    #[test]
+    fn proptest_regression_4f3f0c44fdba16d943c33475dc4fa4431123ca274d17e3529dc7aa778de5655b() {
+        let mut tree = PatriciaMerkleTree::<Vec<u8>, Vec<u8>, Keccak256>::new();
+
+        tree.insert(vec![0x00], vec![0x00]);
+        tree.insert(vec![0x01], vec![0x01]);
+        tree.insert(vec![0x10], vec![0x10]);
+        tree.insert(vec![0x19], vec![0x19]);
+        tree.insert(vec![0x19, 0x00], vec![0x19, 0x00]);
+        tree.insert(vec![0x1A], vec![0x1A]);
+
+        assert_eq!(tree.get(&vec![0x00]), Some(&vec![0x00]));
+        assert_eq!(tree.get(&vec![0x01]), Some(&vec![0x01]));
+        assert_eq!(tree.get(&vec![0x10]), Some(&vec![0x10]));
+        assert_eq!(tree.get(&vec![0x19]), Some(&vec![0x19]));
+        assert_eq!(tree.get(&vec![0x19, 0x00]), Some(&vec![0x19, 0x00]));
+        assert_eq!(tree.get(&vec![0x1A]), Some(&vec![0x1A]));
     }
 }
