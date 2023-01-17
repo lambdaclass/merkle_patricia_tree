@@ -23,6 +23,7 @@ pub enum Nibble {
 impl TryFrom<u8> for Nibble {
     type Error = u8;
 
+    #[inline]
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         Ok(match value {
             0x00 => Self::V0,
@@ -47,12 +48,14 @@ impl TryFrom<u8> for Nibble {
 }
 
 impl From<Nibble> for u8 {
+    #[inline]
     fn from(value: Nibble) -> Self {
         value as u8
     }
 }
 
 impl From<Nibble> for usize {
+    #[inline]
     fn from(value: Nibble) -> Self {
         value as usize
     }

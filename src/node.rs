@@ -77,6 +77,7 @@ where
     V: AsRef<[u8]>,
     H: Digest,
 {
+    #[inline]
     fn from(value: BranchNode<P, V, H>) -> Self {
         Self::Branch(value)
     }
@@ -88,6 +89,7 @@ where
     V: AsRef<[u8]>,
     H: Digest,
 {
+    #[inline]
     fn from(value: ExtensionNode<P, V, H>) -> Self {
         Self::Extension(value)
     }
@@ -99,6 +101,7 @@ where
     V: AsRef<[u8]>,
     H: Digest,
 {
+    #[inline]
     fn from(value: LeafNode<P, V, H>) -> Self {
         Self::Leaf(value)
     }
@@ -120,6 +123,7 @@ pub(crate) enum InsertAction {
 
 impl InsertAction {
     /// Replace `Self::InsertSelf` with `Self::Insert(node_ref)`.
+    #[inline]
     pub fn quantize_self(self, node_ref: NodeRef) -> Self {
         match self {
             Self::InsertSelf => Self::Insert(node_ref),

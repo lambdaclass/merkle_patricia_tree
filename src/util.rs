@@ -37,10 +37,10 @@ pub fn write_list(payload: &[u8], mut target: impl Write) {
 // TODO: Improve performance.
 pub fn encode_path(nibbles: &[Nibble]) -> Vec<u8> {
     let flag = 0x20;
-    if nibbles.len() % 2 == 1 {
+    if nibbles.len() & 1 == 1 {
         let flag = flag | 0x10;
 
-        let mut target = Vec::new();
+        let mut target = Vec::with_capacity(nibbles.len() / 2);
         target.push(flag | (nibbles[0] as u8));
         target.extend(
             nibbles[1..]
@@ -125,5 +125,17 @@ where
 
     fn flush(&mut self) -> std::io::Result<()> {
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn encode_path_basic() {
+        assert_eq!(encode_path(&[Nibble::V1, Nibble::V2, Nibble::V3, Nibble::V4]), vec![0x12, 0x34]);
+        assert_eq!(encode_path(&[Nibble::V0, Nibble::V0, Nibble::V0, Nibble::V1]), vec![0x00, 0x01]);
+        assert_eq!(encode_path(&[Nibble::V1, Nibble::V0, Nibble::V0, Nibble::V1]), vec![0x10, 0x01]);
     }
 }

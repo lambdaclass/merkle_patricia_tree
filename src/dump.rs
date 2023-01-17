@@ -38,7 +38,7 @@ where
     }
 
     pub fn dump(mut self) {
-        let indent = repeat(' ').take(self.indent).collect::<String>();
+        let indent = " ".repeat(self.indent);
         write!(self.writer, "{indent}").unwrap();
 
         match self.parent.root_ref {
@@ -67,7 +67,7 @@ where
     fn write_branch(&mut self, branch_node: &BranchNode<P, V, H>) {
         writeln!(self.writer, "branch {{").unwrap();
         self.indent += 4;
-        let indent = repeat(' ').take(self.indent).collect::<String>();
+        let indent = " ".repeat(self.indent);
         for (index, choice) in branch_node.choices.iter().enumerate() {
             if *choice == NodeRef(INVALID_REF) {
                 continue;
@@ -79,7 +79,7 @@ where
         }
         self.indent -= 4;
 
-        let indent = repeat(' ').take(self.indent).collect::<String>();
+        let indent = " ".repeat(self.indent);
         if branch_node.value_ref == ValueRef(INVALID_REF) {
             write!(self.writer, "{indent}}}").unwrap();
         } else {

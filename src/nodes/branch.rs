@@ -38,6 +38,7 @@ where
         }
     }
 
+    #[inline]
     pub(crate) fn update_value_ref(&mut self, new_value_ref: ValueRef) {
         self.value_ref = new_value_ref;
     }
