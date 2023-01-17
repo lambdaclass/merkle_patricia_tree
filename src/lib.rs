@@ -14,11 +14,11 @@ use std::{
 };
 use util::{DigestBuf, INVALID_REF};
 
+mod dump;
 pub mod nibble;
 mod node;
 mod nodes;
 mod util;
-mod dump;
 
 type NodesStorage<P, V, H> = Slab<Node<P, V, H>>;
 type ValuesStorage<P, V> = Slab<(P, V)>;

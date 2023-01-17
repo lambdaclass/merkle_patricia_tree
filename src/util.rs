@@ -134,8 +134,17 @@ mod tests {
 
     #[test]
     fn encode_path_basic() {
-        assert_eq!(encode_path(&[Nibble::V1, Nibble::V2, Nibble::V3, Nibble::V4]), vec![0x12, 0x34]);
-        assert_eq!(encode_path(&[Nibble::V0, Nibble::V0, Nibble::V0, Nibble::V1]), vec![0x00, 0x01]);
-        assert_eq!(encode_path(&[Nibble::V1, Nibble::V0, Nibble::V0, Nibble::V1]), vec![0x10, 0x01]);
+        assert_eq!(
+            encode_path(&[Nibble::V1, Nibble::V2, Nibble::V3, Nibble::V4]),
+            vec![0x12, 0x34]
+        );
+        assert_eq!(
+            encode_path(&[Nibble::V0, Nibble::V0, Nibble::V0, Nibble::V1]),
+            vec![0x00, 0x01]
+        );
+        assert_eq!(
+            encode_path(&[Nibble::V1, Nibble::V0, Nibble::V0, Nibble::V1]),
+            vec![0x10, 0x01]
+        );
     }
 }
