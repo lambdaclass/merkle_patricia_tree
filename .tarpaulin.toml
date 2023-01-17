@@ -1,5 +1,5 @@
-[patricia-tree]
-exclude-files = []
+[patricia-merkle-tree]
+exclude-files = ["benches/*"]
 
 [report]
 output-dir = "target/tarpaulin"
