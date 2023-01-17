@@ -92,10 +92,13 @@ where
     pub fn finalize(mut self) -> NodeHashRef<'a, H> {
         match self.hasher {
             Some(_) => {
-                let hash_ref = self.parent.hash_ref.borrow();
-                self.push_hash_update(&hash_ref);
+                {
+                    let mut hash_ref = self.parent.hash_ref.borrow_mut();
+                    self.push_hash_update(&hash_ref[..self.parent.length.get()]);
+                    self.hasher.take().unwrap().finalize_into(&mut hash_ref);
+                }
                 self.parent.length.set(32);
-                NodeHashRef::Hashed(hash_ref)
+                NodeHashRef::Hashed(self.parent.hash_ref.borrow())
             }
             None => NodeHashRef::Inline(Ref::map(self.parent.hash_ref.borrow(), |x| {
                 &x[..self.parent.length.get()]
@@ -121,13 +124,6 @@ where
         }
     }
 
-    // pub fn list_len(children_len: usize) -> usize {
-    //     match children_len {
-    //         l if l < 56 => l + 1,
-    //         l => l + next_power_of_256(l) + 1,
-    //     }
-    // }
-
     pub fn write_path_vec(&mut self, value: &NibbleVec, kind: PathKind) {
         let mut flag = kind.into_flag();
 
@@ -142,6 +138,7 @@ where
         };
 
         let i2 = nibble_iter.clone().skip(1).step_by(2);
+        self.write_len(0x80, 0xB7, (nibble_count >> 1) + 1);
         self.write_raw(&[flag]);
         for (a, b) in nibble_iter.step_by(2).zip(i2) {
             self.write_raw(&[(a as u8) << 4 | (b as u8)]);
@@ -162,6 +159,7 @@ where
         };
 
         let i2 = nibble_iter.clone().skip(1).step_by(2);
+        self.write_len(0x80, 0xB7, (nibble_count >> 1) + 1);
         self.write_raw(&[flag]);
         for (a, b) in nibble_iter.step_by(2).zip(i2) {
             self.write_raw(&[(a as u8) << 4 | (b as u8)]);
@@ -169,25 +167,20 @@ where
     }
 
     pub fn write_bytes(&mut self, value: &[u8]) {
-        match value.len() {
-            1 if value[0] < 128 => {}
-            l if l < 56 => self.write_raw(&[0x80u8 + l as u8]),
-            l => {
-                let l_len = next_power_of_256(l);
-                self.write_raw(&[0xB7 + l_len as u8]);
-                self.write_raw(&l.to_be_bytes()[size_of::<usize>() - l_len..]);
-            }
-        }
-
+        self.write_len(0x80, 0xB7, value.len());
         self.write_raw(value);
     }
 
     pub fn write_list_header(&mut self, children_len: usize) {
-        match children_len {
-            l if l < 56 => self.write_raw(&[0xC0u8 + l as u8]),
+        self.write_len(0xC0, 0xF7, children_len);
+    }
+
+    fn write_len(&mut self, short_base: u8, long_base: u8, value: usize) {
+        match value {
+            l if l < 56 => self.write_raw(&[short_base + l as u8]),
             l => {
                 let l_len = next_power_of_256(l);
-                self.write_raw(&[0xF7 + l_len as u8]);
+                self.write_raw(&[long_base + l_len as u8]);
                 self.write_raw(&l.to_be_bytes()[size_of::<usize>() - l_len..]);
             }
         }
@@ -210,17 +203,16 @@ where
 
             if length == 32 {
                 self.push_hash_update(&hash_ref);
+                length = 0;
             }
         }
 
         self.parent.length.set(length);
     }
 
-    fn push_hash_update(&mut self, hash_ref: &Output<H>) {
+    fn push_hash_update(&mut self, data: &[u8]) {
         let hasher = self.hasher.get_or_insert_with(H::new);
-        hasher.update(&hash_ref[..self.parent.length.get()]);
-
-        self.parent.length.set(0);
+        hasher.update(data);
     }
 }
 
