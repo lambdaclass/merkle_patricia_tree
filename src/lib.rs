@@ -179,7 +179,7 @@ where
 #[cfg(test)]
 mod test {
     use crate::*;
-    use proptest::collection::{hash_set, vec};
+    use proptest::collection::{btree_set, vec};
     use proptest::prelude::*;
     use sha3::Keccak256;
 
@@ -219,7 +219,7 @@ mod test {
 
 
         #[test]
-        fn proptest_get_inserted_multiple(paths in hash_set(vec(any::<u8>(), 2..10), 2..10)) {
+        fn proptest_get_inserted_multiple(paths in btree_set(vec(any::<u8>(), 1..100), 1..100)) {
             let mut tree = PatriciaMerkleTree::<Vec<u8>, Vec<u8>, Keccak256>::new();
 
             let paths: Vec<Vec<u8>> = paths.into_iter().collect();
