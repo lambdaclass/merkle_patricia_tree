@@ -3,19 +3,18 @@
 #![deny(warnings)]
 
 use self::{
-    nibble::{Nibble, NibbleSlice},
+    nibble::NibbleSlice,
     node::{InsertAction, Node},
     nodes::LeafNode,
-    storage::{NodeRef, NodesStorage, ValuesStorage},
+    storage::{NodeRef, NodesStorage, ValueRef, ValuesStorage},
 };
 use digest::{Digest, Output};
-use hashing::DigestBuf;
+use hashing::NodeHashRef;
 use slab::Slab;
 use std::{
-    io::Write,
+    borrow::Cow,
     mem::{replace, size_of},
 };
-use storage::ValueRef;
 
 mod dump;
 mod hashing;
@@ -122,17 +121,17 @@ where
     }
 
     /// Return the root hash of the tree (or recompute if needed).
-    pub fn compute_hash(&mut self) -> Option<Output<H>> {
-        self.nodes.try_remove(*self.root_ref).map(|mut root_node| {
-            // TODO: Forward root's hash if len >= 32.
-            let mut hasher = DigestBuf::<H>::new();
-            hasher
-                .write_all(root_node.compute_hash(&mut self.nodes, &self.values, 0))
-                .unwrap();
-            let output = hasher.finalize();
+    pub fn compute_hash(&mut self) -> Option<Cow<Output<H>>> {
+        self.root_ref.is_valid().then(|| {
+            let root_node = self
+                .nodes
+                .get_mut(*self.root_ref)
+                .expect("inconsistent internal tree structure");
 
-            self.root_ref = NodeRef::new(self.nodes.insert(root_node));
-            output
+            match root_node.compute_hash(&mut self.nodes, &self.values, 0) {
+                NodeHashRef::Inline(_) => todo!(),
+                NodeHashRef::Hashed(x) => Cow::Borrowed(x),
+            }
         })
     }
 

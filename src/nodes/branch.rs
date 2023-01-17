@@ -1,12 +1,12 @@
 use super::LeafNode;
 use crate::{
-    hashing::{write_list, write_slice, DigestBuf},
+    hashing::{NodeHash, NodeHashRef, NodeHasher},
     nibble::NibbleSlice,
     node::{InsertAction, Node},
     NodeRef, NodesStorage, ValueRef, ValuesStorage,
 };
-use digest::{Digest, Output};
-use std::{io::Cursor, marker::PhantomData};
+use digest::Digest;
+use std::marker::PhantomData;
 
 #[derive(Clone, Debug)]
 pub struct BranchNode<P, V, H>
@@ -19,7 +19,7 @@ where
     pub(crate) choices: [NodeRef; 16],
     pub(crate) value_ref: ValueRef,
 
-    hash: (usize, Output<H>),
+    hash: NodeHash<H>,
     phantom: PhantomData<(P, V, H)>,
 }
 
@@ -33,7 +33,7 @@ where
         Self {
             choices,
             value_ref: Default::default(),
-            hash: (0, Default::default()),
+            hash: Default::default(),
             phantom: PhantomData,
         }
     }
@@ -89,7 +89,7 @@ where
         // If path is at the end, insert or replace its own value.
         // Otherwise, check the corresponding choice and insert or delegate accordingly.
 
-        self.hash.0 = 0;
+        self.hash.mark_as_dirty();
 
         let insert_action = match path.next() {
             Some(choice) => match &mut self.choices[choice as usize] {
@@ -127,49 +127,73 @@ where
         nodes: &mut NodesStorage<P, V, H>,
         values: &ValuesStorage<P, V>,
         key_offset: usize,
-    ) -> &[u8] {
-        if self.hash.0 == 0 {
-            let mut digest_buf = DigestBuf::<H>::new();
+    ) -> NodeHashRef<H> {
+        self.hash.extract_ref().unwrap_or_else(|| {
+            let mut children_len: usize = self
+                .choices
+                .iter()
+                .map(|choice| {
+                    choice
+                        .is_valid()
+                        .then(|| {
+                            let child_node = nodes
+                                .get(**choice)
+                                .expect("inconsistent internal tree structure");
 
-            let mut payload = Vec::new();
-            for child_ref in &mut self.choices {
-                if child_ref.is_valid() {
-                    let mut child_node = nodes
-                        .try_remove(**child_ref)
-                        .expect("inconsistent internal tree structure");
-
-                    payload.extend_from_slice(child_node.compute_hash(
-                        nodes,
-                        values,
-                        key_offset + 1,
-                    ));
-
-                    *child_ref = NodeRef::new(nodes.insert(child_node));
-                } else {
-                    payload.push(0x80);
-                }
-            }
+                            let child_hash_ref = child_node
+                                .compute_hash(nodes, values, key_offset + 1)
+                                .as_ref();
+                            NodeHasher::<H>::bytes_len(
+                                child_hash_ref.len(),
+                                child_hash_ref.first().copied().unwrap_or_default(),
+                            )
+                        })
+                        .unwrap_or(1)
+                })
+                .sum();
 
             if self.value_ref.is_valid() {
-                write_slice(
-                    values
-                        .get(*self.value_ref)
-                        .expect("inconsistent internal tree structure")
-                        .1
-                        .as_ref(),
-                    {
-                        let mut cursor = Cursor::new(&mut payload);
-                        cursor.set_position(cursor.get_ref().len() as u64);
-                        cursor
-                    },
+                let (_, value) = values
+                    .get(*self.value_ref)
+                    .expect("inconsistent internal tree structure");
+
+                children_len += NodeHasher::<H>::bytes_len(
+                    value.as_ref().len(),
+                    value.as_ref().first().copied().unwrap_or_default(),
                 );
             }
 
-            write_list(&payload, &mut digest_buf);
-            self.hash.0 = digest_buf.extract_or_finalize(&mut self.hash.1);
-        }
+            let mut hasher = NodeHasher::new(&mut self.hash);
+            hasher.write_list_header(children_len);
 
-        &self.hash.1[..self.hash.0]
+            self.choices
+                .iter()
+                .map(|choice| {
+                    choice
+                        .is_valid()
+                        .then(|| {
+                            let child_node = nodes
+                                .get(**choice)
+                                .expect("inconsistent internal tree structure");
+
+                            child_node
+                                .compute_hash(nodes, values, key_offset + 1)
+                                .as_ref()
+                        })
+                        .unwrap_or(&[])
+                })
+                .for_each(|x| hasher.write_bytes(x));
+
+            if self.value_ref.is_valid() {
+                let (_, value) = values
+                    .get(*self.value_ref)
+                    .expect("inconsistent internal tree structure");
+
+                hasher.write_bytes(value.as_ref());
+            }
+
+            hasher.finalize()
+        })
     }
 }
 

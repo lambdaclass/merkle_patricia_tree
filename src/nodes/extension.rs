@@ -1,13 +1,13 @@
 use super::BranchNode;
 use crate::{
-    hashing::{encode_path, write_list, write_slice, DigestBuf},
+    hashing::{NodeHash, NodeHashRef, NodeHasher, PathKind},
     nibble::{NibbleSlice, NibbleVec},
     node::{InsertAction, Node},
     nodes::LeafNode,
     NodeRef, NodesStorage, ValueRef, ValuesStorage,
 };
-use digest::{Digest, Output};
-use std::{io::Cursor, marker::PhantomData};
+use digest::Digest;
+use std::marker::PhantomData;
 
 #[derive(Clone, Debug)]
 pub struct ExtensionNode<P, V, H>
@@ -21,7 +21,7 @@ where
     // inflating `Node`'s size too much.
     pub(crate) child_ref: NodeRef,
 
-    hash: (usize, Output<H>),
+    hash: NodeHash<H>,
     phantom: PhantomData<(P, V, H)>,
 }
 
@@ -35,7 +35,7 @@ where
         Self {
             prefix,
             child_ref,
-            hash: (0, Default::default()),
+            hash: Default::default(),
             phantom: PhantomData,
         }
     }
@@ -77,7 +77,7 @@ where
         //   extension { [0, 1, 2], child } -> extension { [0, 1], branch { 2 => child } with_value ! }
         //   extension { [0, 1, 2], child } -> extension { [0, 1, 2], child }
 
-        self.hash.0 = 0;
+        self.hash.mark_as_dirty();
 
         if path.skip_prefix(&self.prefix) {
             let child_node = nodes
@@ -150,27 +150,29 @@ where
         nodes: &mut NodesStorage<P, V, H>,
         values: &ValuesStorage<P, V>,
         key_offset: usize,
-    ) -> &[u8] {
-        if self.hash.0 == 0 {
-            let mut payload = Cursor::new(Vec::new());
-
-            let mut digest_buf = DigestBuf::<H>::new();
-
-            let prefix = encode_path(&self.prefix.iter().collect::<Vec<_>>());
-            write_slice(&prefix, &mut payload);
-
-            let mut child = nodes
+    ) -> NodeHashRef<H> {
+        self.hash.extract_ref().unwrap_or_else(|| {
+            let mut child_node = nodes
                 .try_remove(*self.child_ref)
                 .expect("inconsistent internal tree structure");
-            let child_hash =
-                child.compute_hash(nodes, values, key_offset + self.prefix.iter().count());
-            write_slice(child_hash, &mut payload);
 
-            write_list(&payload.into_inner(), &mut digest_buf);
-            self.hash.0 = digest_buf.extract_or_finalize(&mut self.hash.1);
-        }
+            let child_hash_ref =
+                child_node.compute_hash(nodes, values, key_offset + self.prefix.iter().count());
 
-        &self.hash.1
+            let prefix_len = NodeHasher::<H>::path_len_vec(&self.prefix, PathKind::Extension);
+            let child_len = NodeHasher::<H>::bytes_len(
+                child_hash_ref.as_ref().len(),
+                child_hash_ref.as_ref().first().copied().unwrap_or_default(),
+            );
+
+            let mut hasher = NodeHasher::new(&mut self.hash);
+            hasher.write_list_header(prefix_len + child_len);
+            hasher.write_path_vec(&self.prefix, PathKind::Extension);
+            hasher.write_bytes(child_hash_ref.as_ref());
+
+            self.child_ref = NodeRef::new(nodes.insert(child_node));
+            hasher.finalize()
+        })
     }
 }
 

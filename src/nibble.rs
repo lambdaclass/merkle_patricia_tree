@@ -322,6 +322,7 @@ impl NibbleVec {
     }
 }
 
+#[derive(Clone)]
 pub struct NibbleVecIter<'a> {
     inner: &'a NibbleVec,
     pos: usize,

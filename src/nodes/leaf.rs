@@ -1,12 +1,12 @@
 use super::{BranchNode, ExtensionNode};
 use crate::{
-    hashing::{encode_path, write_list, write_slice, DigestBuf},
+    hashing::{NodeHash, NodeHashRef, NodeHasher, PathKind},
     nibble::NibbleSlice,
     node::{InsertAction, Node},
     NodeRef, NodesStorage, ValueRef, ValuesStorage,
 };
-use digest::{Digest, Output};
-use std::{io::Cursor, marker::PhantomData};
+use digest::Digest;
+use std::marker::PhantomData;
 
 #[derive(Clone, Debug)]
 pub struct LeafNode<P, V, H>
@@ -17,7 +17,7 @@ where
 {
     pub(crate) value_ref: ValueRef,
 
-    hash: (usize, Output<H>),
+    hash: NodeHash<H>,
     phantom: PhantomData<(P, V, H)>,
 }
 
@@ -30,7 +30,7 @@ where
     pub(crate) fn new(value_ref: ValueRef) -> Self {
         Self {
             value_ref,
-            hash: (0, Default::default()),
+            hash: Default::default(),
             phantom: PhantomData,
         }
     }
@@ -68,7 +68,7 @@ where
         //   leaf { key => value } -> extension { [0], branch { 0 => leaf { key => value } } with_value leaf { key => value } }
         //   leaf { key => value } -> extension { [0], branch { 0 => leaf { key => value } } with_value leaf { key => value } } // leafs swapped
 
-        self.hash.0 = 0;
+        self.hash.mark_as_dirty();
 
         let (value_path, _) = values
             .get(*self.value_ref)
@@ -148,31 +148,38 @@ where
         _nodes: &mut NodesStorage<P, V, H>,
         values: &ValuesStorage<P, V>,
         key_offset: usize,
-    ) -> &[u8] {
-        if self.hash.0 == 0 {
+    ) -> NodeHashRef<H> {
+        self.hash.extract_ref().unwrap_or_else(|| {
             let (key, value) = values
                 .get(*self.value_ref)
                 .expect("inconsistent internal tree structure");
 
-            let mut digest_buf = DigestBuf::<H>::new();
+            let key_len = NodeHasher::<H>::path_len_slice(
+                &{
+                    let mut key_slice = NibbleSlice::new(key.as_ref());
+                    key_slice.offset_add(key_offset);
+                    key_slice
+                },
+                PathKind::Leaf,
+            );
+            let value_len = NodeHasher::<H>::bytes_len(
+                value.as_ref().len(),
+                value.as_ref().first().copied().unwrap_or_default(),
+            );
 
-            // Encode key.
-            // TODO: Improve performance by avoiding allocations.
-            let key: Vec<_> = NibbleSlice::new(key.as_ref()).skip(key_offset).collect();
-            let key_buf = encode_path(&key);
-
-            let mut payload = Cursor::new(Vec::new());
-            write_slice(&key_buf, &mut payload);
-
-            // Encode value.
-            // TODO: Improve performance by avoiding allocations.
-            write_slice(value.as_ref(), &mut payload);
-
-            write_list(&payload.into_inner(), &mut digest_buf);
-            self.hash.0 = digest_buf.extract_or_finalize(&mut self.hash.1);
-        }
-
-        &self.hash.1[..self.hash.0]
+            let mut hasher = NodeHasher::new(&mut self.hash);
+            hasher.write_list_header(key_len + value_len);
+            hasher.write_path_slice(
+                &{
+                    let mut key_slice = NibbleSlice::new(key.as_ref());
+                    key_slice.offset_add(key_offset);
+                    key_slice
+                },
+                PathKind::Leaf,
+            );
+            hasher.write_bytes(value.as_ref());
+            hasher.finalize()
+        })
     }
 }
 
@@ -233,7 +240,7 @@ mod test {
         };
 
         assert_eq!(node.value_ref, ValueRef::new(0));
-        assert_eq!(node.hash.0, 0);
+        assert!(node.hash.extract_ref().is_none());
         assert_eq!(insert_action, InsertAction::Replace(ValueRef::new(0)));
     }
 
@@ -328,7 +335,7 @@ mod test {
 
         let node_hash_ref = node.compute_hash(&mut nodes, &values, 0);
         assert_eq!(
-            node_hash_ref,
+            node_hash_ref.as_ref(),
             &[0xCB, 0x84, 0x20, 0x6B, 0x65, 0x79, 0x85, 0x76, 0x61, 0x6C, 0x75, 0x65],
         );
     }
@@ -342,9 +349,8 @@ mod test {
         };
 
         let node_hash_ref = node.compute_hash(&mut nodes, &values, 0);
-        println!("{node_hash_ref:02X?}");
         assert_eq!(
-            node_hash_ref,
+            node_hash_ref.as_ref(),
             &[
                 0xEB, 0x92, 0x75, 0xB3, 0xAE, 0x09, 0x3A, 0x17, 0x75, 0x7C, 0xFB, 0x42, 0xF7, 0xD5,
                 0x57, 0xF9, 0xE5, 0x77, 0xBD, 0x5B, 0xEB, 0x86, 0xA8, 0x68, 0x49, 0x91, 0xA6, 0x5B,

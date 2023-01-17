@@ -1,4 +1,5 @@
 use crate::{
+    hashing::NodeHashRef,
     nibble::NibbleSlice,
     nodes::{BranchNode, ExtensionNode, LeafNode},
     NodeRef, NodesStorage, ValueRef, ValuesStorage,
@@ -60,7 +61,7 @@ where
         nodes: &mut NodesStorage<P, V, H>,
         values: &ValuesStorage<P, V>,
         key_offset: usize,
-    ) -> &[u8] {
+    ) -> NodeHashRef<H> {
         match self {
             Node::Branch(branch_node) => branch_node.compute_hash(nodes, values, key_offset),
             Node::Extension(extension_node) => {
