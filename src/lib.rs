@@ -404,18 +404,13 @@ mod test {
             (b"dog".to_vec(), b"puppy".to_vec()),
             (b"dogglesworth".to_vec(), b"cat".to_vec()),
         ]);
-        let mut tree = PatriciaMerkleTree::<&[u8], &[u8], Keccak256>::new();
-        tree.insert(b"doe", b"reindeer");
-        tree.insert(b"dog", b"puppy");
-        tree.insert(b"dogglesworth", b"cat");
+    }
 
-        let hash = tree.compute_hash().unwrap();
-        let hashhex = format!("{:02x}", hash);
-        assert_eq!(
-            "0807d5393ae7f349481063ebb5dbaf6bda58db282a385ca97f37dccba717cb79",
-            hashhex.as_str()
-        );
-        compute_hash_trie(vec![]);
+    proptest! {
+        #[test]
+        fn proptest_compare_hashes_simple(path in vec(any::<u8>(), 1..32), value in vec(any::<u8>(), 1..100)) {
+            expect_hash(vec![(path, value)]);
+        }
     }
 
     fn expect_hash(data: Vec<(Vec<u8>, Vec<u8>)>) {
