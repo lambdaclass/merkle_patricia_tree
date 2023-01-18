@@ -6,7 +6,19 @@ This crate contains an implementation of a Patricia Tree.
 
 Its structure is implemented to match Ethereum's [Patricia Merkle Trees](https://ethereum.org/en/developers/docs/data-structures-and-encoding/patricia-merkle-trie/).
 
-> TODO: Storage implementation example.
+```rust
+use merkle_patricia_tree::PatriciaMerkleTree;
+use sha3::Keccak256;
+
+let mut tree = PatriciaMerkleTree::<&[u8], &[u8], Keccak256>::new();
+tree.insert(b"doe", b"reindeer");
+tree.insert(b"dog", b"puppy");
+tree.insert(b"dogglesworth", b"cat");
+
+let hash = tree.compute_hash().unwrap();
+println!("{:x}", hash)
+```
+
 
 ## Building
 
@@ -40,15 +52,8 @@ On a AMD Ryzen 9 5950x 3.4 Ghz with 128 Gb RAM using `Keccak256` as the hash fun
 
 | Bench | 1k | 10k | 100k | 1M |
 |----------|------|-----------|-------------|----|
-| get() | `48.415 ns` | `68.848 ns` | `108.01 ns` | `238.90 ns` |
-| insert() | `279.86 ns` | `338.32 ns` | `825.42 ns` | `18.284 µs` |
-
-Where `MyNode` is a path wrapper around a `Vec<u8>`
-
-```
-struct MyNodePath(Vec<u8>);
-```
-
+| get() | `38.287 ns` | `58.692 ns` | `118.90 ns` | `266.56 ns` |
+| insert() | `327.44 ns` | `407.50 ns` | `778.76 ns` | `1.6858 µs` |
 
 ## What is a patricia merke tree
 
