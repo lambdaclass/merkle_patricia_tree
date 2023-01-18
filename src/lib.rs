@@ -392,6 +392,44 @@ mod test {
     }
 
     #[test]
+    fn compute_hashes() {
+        expect_hash(vec![
+            (b"doe".to_vec(), b"reindeer".to_vec()),
+            (b"dog".to_vec(), b"puppy".to_vec()),
+            (b"dogglesworth".to_vec(), b"cat".to_vec()),
+        ]);
+    }
+
+    proptest! {
+        #[test]
+        fn proptest_compare_hashes_simple(path in vec(any::<u8>(), 1..32), value in vec(any::<u8>(), 1..100)) {
+            expect_hash(vec![(path, value)]);
+        }
+    }
+
+    fn expect_hash(data: Vec<(Vec<u8>, Vec<u8>)>) {
+        assert_eq!(compute_hash_trie(data.clone()), compute_hash_ours(data));
+    }
+
+    fn compute_hash_ours(data: Vec<(Vec<u8>, Vec<u8>)>) -> String {
+        let mut tree = PatriciaMerkleTree::<_, _, Keccak256>::new();
+
+        for (key, val) in data {
+            tree.insert(key, val);
+        }
+
+        let hash = tree.compute_hash().unwrap();
+        format!("{:x}", hash)
+    }
+
+    fn compute_hash_trie(data: Vec<(Vec<u8>, Vec<u8>)>) -> String {
+        use trie_root::trie_root;
+        let hash =
+            trie_root::<KeccakHasher, ReferenceTrieStream, _, _, _>(data, Default::default());
+        hash.iter().map(|b| format!("{:02x}", b)).collect()
+    }
+
+    #[test]
     fn test() {
         let mut tree = PatriciaMerkleTree::<&[u8], &[u8], Keccak256>::new();
         tree.insert(b"doe", b"reindeer");
