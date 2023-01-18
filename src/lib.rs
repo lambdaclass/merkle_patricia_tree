@@ -172,11 +172,16 @@ where
 
 #[cfg(test)]
 mod test {
-
+    use crate::dump::TreeDump;
     use crate::*;
+    use hex_literal::hex;
+    use keccak_hasher::KeccakHasher;
     use proptest::collection::{btree_set, vec};
     use proptest::prelude::*;
+    use reference_trie::ReferenceTrieStream;
     use sha3::Keccak256;
+    use std::io::stdout;
+    use trie_root::unhashed_trie;
 
     // #[test]
     // fn compute_hash() {
@@ -272,17 +277,6 @@ mod test {
         let item = tree.get(&vec![0, 0]);
         assert!(item.is_some());
         assert_eq!(item.unwrap(), &vec![0, 0]);
-    }
-
-    #[test]
-    fn test() {
-        let mut tree = PatriciaMerkleTree::<Vec<u8>, Vec<u8>, Keccak256>::new();
-
-        tree.insert(vec![48], vec![0]);
-        tree.insert(vec![49], vec![1]);
-
-        assert_eq!(tree.get(&vec![48]), Some(&vec![0]));
-        assert_eq!(tree.get(&vec![49]), Some(&vec![1]));
     }
 
     #[test]
@@ -429,11 +423,41 @@ mod test {
     }
 
     fn compute_hash_trie(data: Vec<(Vec<u8>, Vec<u8>)>) -> String {
-        use keccak_hasher::KeccakHasher;
-        use reference_trie::ReferenceTrieStream;
         use trie_root::trie_root;
         let hash =
             trie_root::<KeccakHasher, ReferenceTrieStream, _, _, _>(data, Default::default());
         hash.iter().map(|b| format!("{:02x}", b)).collect()
+    }
+
+    #[test]
+    fn test() {
+        let mut tree = PatriciaMerkleTree::<&[u8], &[u8], Keccak256>::new();
+        tree.insert(b"doe", b"reindeer");
+        tree.insert(b"dog", b"puppy");
+        tree.insert(b"dogglesworth", b"cat");
+
+        {
+            let mut out = stdout().lock();
+            TreeDump::new(&tree, &mut out, 0).dump();
+        }
+
+        let hash = tree.compute_hash().unwrap();
+        println!("{hash:02x}");
+        todo!("intentionally crashed")
+    }
+
+    #[test]
+    fn test_parity() {
+        let v: Vec<(&[u8], &[u8])> = vec![
+            (b"doe", b"reindeer"),
+            (b"dog", b"puppy"),
+            (b"dogglesworth", b"cat"),
+        ];
+
+        let root = hex!["0807d5393ae7f349481063ebb5dbaf6bda58db282a385ca97f37dccba717cb79"];
+        assert_eq!(
+            unhashed_trie::<KeccakHasher, ReferenceTrieStream, _, _, _>(v, Default::default()),
+            root
+        );
     }
 }

@@ -105,7 +105,7 @@ where
             .iter()
             .map(|x| match x as u8 {
                 x if (0..10).contains(&x) => (b'0' + x) as char,
-                x => (b'A' + x) as char,
+                x => (b'A' + (x - 10)) as char,
             })
             .collect::<String>();
 

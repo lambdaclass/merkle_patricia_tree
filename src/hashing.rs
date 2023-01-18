@@ -120,7 +120,7 @@ where
         match value_len {
             1 if first_value < 128 => 1,
             l if l < 56 => l + 1,
-            l => l + next_power_of_256(l) + 1,
+            l => l + compute_byte_usage(l) + 1,
         }
     }
 
@@ -131,6 +131,7 @@ where
         let nibble_count = value.iter().count();
         let nibble_iter = if nibble_count & 0x01 != 0 {
             let mut iter = value.iter();
+            flag |= 0x10;
             flag |= iter.next().unwrap() as u8;
             iter
         } else {
@@ -141,7 +142,7 @@ where
         self.write_len(0x80, 0xB7, (nibble_count >> 1) + 1);
         self.write_raw(&[flag]);
         for (a, b) in nibble_iter.step_by(2).zip(i2) {
-            self.write_raw(&[(a as u8) << 4 | (b as u8)]);
+            self.write_raw(&[((a as u8) << 4) | (b as u8)]);
         }
     }
 
@@ -152,6 +153,7 @@ where
         let nibble_count = value.clone().count();
         let nibble_iter = if nibble_count & 0x01 != 0 {
             let mut iter = value.clone();
+            flag |= 0x10;
             flag |= iter.next().unwrap() as u8;
             iter
         } else {
@@ -162,13 +164,22 @@ where
         self.write_len(0x80, 0xB7, (nibble_count >> 1) + 1);
         self.write_raw(&[flag]);
         for (a, b) in nibble_iter.step_by(2).zip(i2) {
-            self.write_raw(&[(a as u8) << 4 | (b as u8)]);
+            self.write_raw(&[((a as u8) << 4) | (b as u8)]);
         }
     }
 
     pub fn write_bytes(&mut self, value: &[u8]) {
-        self.write_len(0x80, 0xB7, value.len());
-        self.write_raw(value);
+        if value.len() == 1 && value[0] < 128 {
+            // TODO: This isn't on the Ethereum wiki about RLP encoding...
+            if value[0] == 0 {
+                self.write_raw(&[0x80]);
+            } else {
+                self.write_raw(&[value[0]]);
+            }
+        } else {
+            self.write_len(0x80, 0xB7, value.len());
+            self.write_raw(value);
+        }
     }
 
     pub fn write_list_header(&mut self, children_len: usize) {
@@ -179,7 +190,7 @@ where
         match value {
             l if l < 56 => self.write_raw(&[short_base + l as u8]),
             l => {
-                let l_len = next_power_of_256(l);
+                let l_len = compute_byte_usage(l);
                 self.write_raw(&[long_base + l_len as u8]);
                 self.write_raw(&l.to_be_bytes()[size_of::<usize>() - l_len..]);
             }
@@ -231,7 +242,7 @@ impl PathKind {
     }
 }
 
-fn next_power_of_256(value: usize) -> usize {
+fn compute_byte_usage(value: usize) -> usize {
     let bits_used = usize::BITS as usize - value.leading_zeros() as usize;
-    bits_used.saturating_sub(1) >> 3
+    (bits_used.saturating_sub(1) >> 3) + 1
 }

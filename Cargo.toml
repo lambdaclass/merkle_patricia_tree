@@ -15,11 +15,12 @@ smallvec = { version = "1.10.0", features = ["const_generics", "union"] }
 
 [dev-dependencies]
 criterion = "0.4.0"
-keccak-hasher = "0.15.3"
 memory-db = "0.31.0"
 proptest = "1.0.0"
 rand = "0.8.5"
-reference-trie = "0.26.0"
 sha3 = "0.10.6"
 trie-db = "0.24.0"
+hex-literal = "0.3.4"
+keccak-hasher = "0.15.3"
+reference-trie = "0.26.0"
 trie-root = "0.17.0"
