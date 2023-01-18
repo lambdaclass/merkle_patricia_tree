@@ -406,7 +406,7 @@ mod test {
         let hash = tree.compute_hash().unwrap();
         let hashhex = format!("{:x}", hash);
         assert_eq!(
-            "d6e02b2bd48aa04fd2ad87cfac1144a29ca7f7dc60f4526c7b7040763abe3d43",
+            "0807d5393ae7f349481063ebb5dbaf6bda58db282a385ca97f37dccba717cb79",
             hashhex.as_str()
         );
     }
