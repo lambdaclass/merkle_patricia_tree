@@ -395,4 +395,19 @@ mod test {
         assert_eq!(tree.get(&vec![0x19, 0x00]), Some(&vec![0x19, 0x00]));
         assert_eq!(tree.get(&vec![0x1A]), Some(&vec![0x1A]));
     }
+
+    #[test]
+    fn compute_hashes() {
+        let mut tree = PatriciaMerkleTree::<&[u8], &[u8], Keccak256>::new();
+        tree.insert(b"doe", b"reindeer");
+        tree.insert(b"dog", b"puppy");
+        tree.insert(b"dogglesworth", b"cat");
+
+        let hash = tree.compute_hash().unwrap();
+        let hashhex = format!("{:x}", hash);
+        assert_eq!(
+            "d6e02b2bd48aa04fd2ad87cfac1144a29ca7f7dc60f4526c7b7040763abe3d43",
+            hashhex.as_str()
+        );
+    }
 }
