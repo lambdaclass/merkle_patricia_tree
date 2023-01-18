@@ -27,7 +27,7 @@ pub fn bench_get<const N: usize>() -> impl FnMut(&mut Bencher) {
 
     move |b| {
         let mut path_iter = all_paths.iter().cycle();
-        b.iter(|| black_box(tree.get(path_iter.next().unwrap())));
+        b.iter(|| tree.get(black_box(path_iter.next().unwrap())));
     }
 }
 
@@ -86,7 +86,7 @@ pub fn bench_insert<const N: usize>() -> impl FnMut(&mut Bencher) {
                 let measure = Instant::now();
                 for _ in offset..num_iters.min(offset + STEP as u64) {
                     let (path, value) = path_iter.next().unwrap();
-                    tree.insert(path, value);
+                    tree.insert(black_box(path), black_box(value));
                 }
                 delta += measure.elapsed();
             }
