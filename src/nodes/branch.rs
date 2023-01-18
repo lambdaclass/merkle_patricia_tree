@@ -185,6 +185,8 @@ where
                     .expect("inconsistent internal tree structure");
 
                 hasher.write_bytes(value.as_ref());
+            } else {
+                hasher.write_bytes(&[]);
             }
 
             hasher.finalize()

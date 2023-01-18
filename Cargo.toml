@@ -18,3 +18,9 @@ criterion = "0.4.0"
 proptest = "1.0.0"
 rand = "0.8.5"
 sha3 = "0.10.6"
+
+# TOOD: move to dev-dependencies when no longer temporary.
+hex-literal = "0.3.4"
+keccak-hasher = "0.15.3"
+reference-trie = "0.26.0"
+trie-root = "0.17.0"

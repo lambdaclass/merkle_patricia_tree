@@ -168,7 +168,7 @@ where
             let mut hasher = NodeHasher::new(&self.hash);
             hasher.write_list_header(prefix_len + child_len);
             hasher.write_path_vec(&self.prefix, PathKind::Extension);
-            hasher.write_bytes(child_hash_ref.as_ref());
+            hasher.write_raw(child_hash_ref.as_ref());
             hasher.finalize()
         })
     }
