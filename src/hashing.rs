@@ -186,7 +186,7 @@ where
         }
     }
 
-    fn write_raw(&mut self, value: &[u8]) {
+    pub fn write_raw(&mut self, value: &[u8]) {
         let mut length = self.parent.length.get();
         let mut hash_ref = self.parent.hash_ref.borrow_mut();
 

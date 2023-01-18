@@ -177,6 +177,16 @@ mod test {
     use proptest::prelude::*;
     use sha3::Keccak256;
 
+    // #[test]
+    // fn compute_hash() {
+    //     todo!()
+    // }
+
+    // #[test]
+    // fn compute_hash_long() {
+    //     todo!()
+    // }
+
     #[test]
     fn get_inserted() {
         let mut tree = PatriciaMerkleTree::<&[u8], &[u8], Keccak256>::new();

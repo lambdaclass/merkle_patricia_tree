@@ -142,10 +142,9 @@ where
 
                             let child_hash_ref =
                                 child_node.compute_hash(nodes, values, key_offset + 1);
-                            NodeHasher::<H>::bytes_len(
-                                child_hash_ref.as_ref().len(),
-                                child_hash_ref.as_ref().first().copied().unwrap_or_default(),
-                            )
+                            // TODO: Should this be bytes or raw? Maybe it depends on whether it's
+                            //   hashed or inlined?
+                            child_hash_ref.as_ref().len()
                         })
                         .unwrap_or(1)
                 })
@@ -172,7 +171,9 @@ where
                         .expect("inconsistent internal tree structure");
 
                     let child_hash = child_node.compute_hash(nodes, values, key_offset + 1);
-                    hasher.write_bytes(child_hash.as_ref());
+                    // TODO: Should this be bytes or raw? Maybe it depends on whether it's
+                    //   hashed or inlined?
+                    hasher.write_raw(child_hash.as_ref());
                 } else {
                     hasher.write_bytes(&[]);
                 }
@@ -339,4 +340,96 @@ mod test {
         // TODO: Check node and children.
         assert_eq!(insert_action, InsertAction::InsertSelf);
     }
+
+    // #[test]
+    // fn compute_hash_two_choices() {
+    //     let (mut nodes, mut values) = pmt_state!(Vec<u8>);
+
+    //     let node = pmt_node! { @(nodes, values)
+    //         branch {
+    //             2 => leaf { vec![0x20] => vec![0x20] },
+    //             4 => leaf { vec![0x40] => vec![0x40] },
+    //         }
+    //     };
+
+    //     assert_eq!(
+    //         node.compute_hash(&nodes, &values, 0).as_ref(),
+    //         &[
+    //             0xD5, 0x80, 0x80, 0xC2, 0x30, 0x20, 0x80, 0xC2, 0x30, 0x40, 0x80, 0x80, 0x80, 0x80,
+    //             0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80
+    //         ],
+    //     );
+    // }
+
+    // #[test]
+    // fn compute_hash_all_choices() {
+    //     let (nodes, values) = pmt_state!(Vec<u8>);
+
+    //     let node = pmt_node! { @(nodes, values)
+    //         branch {
+    //             0x0 => leaf { vec![0x00] => vec![0x00] },
+    //             0x1 => leaf { vec![0x10] => vec![0x10] },
+    //             0x2 => leaf { vec![0x20] => vec![0x20] },
+    //             0x3 => leaf { vec![0x30] => vec![0x30] },
+    //             0x4 => leaf { vec![0x40] => vec![0x40] },
+    //             0x5 => leaf { vec![0x50] => vec![0x50] },
+    //             0x6 => leaf { vec![0x60] => vec![0x60] },
+    //             0x7 => leaf { vec![0x70] => vec![0x70] },
+    //             0x8 => leaf { vec![0x80] => vec![0x80] },
+    //             0x9 => leaf { vec![0x90] => vec![0x90] },
+    //             0xA => leaf { vec![0xA0] => vec![0xA0] },
+    //             0xB => leaf { vec![0xB0] => vec![0xB0] },
+    //             0xC => leaf { vec![0xC0] => vec![0xC0] },
+    //             0xD => leaf { vec![0xD0] => vec![0xD0] },
+    //             0xE => leaf { vec![0xE0] => vec![0xE0] },
+    //             0xF => leaf { vec![0xF0] => vec![0xF0] },
+    //         }
+    //     };
+
+    //     assert_eq!(node.compute_hash(&nodes, &values, 0).as_ref(), todo!(),);
+    // }
+
+    // #[test]
+    // fn compute_hash_one_choice_with_value() {
+    //     let (nodes, values) = pmt_state!(Vec<u8>);
+
+    //     let node = pmt_node! { @(nodes, values)
+    //         branch {
+    //             2 => leaf { vec![0x00, 0x20] => vec![0x00, 0x20] },
+    //             4 => leaf { vec![0x00, 0x40] => vec![0x00, 0x40] },
+    //         } with_leaf { vec![0x00] => vec![] }
+    //     };
+
+    //     assert_eq!(node.compute_hash(&nodes, &values, 0).as_ref(), todo!(),);
+    // }
+
+    // #[test]
+    // fn compute_hash_all_choices_with_value() {
+    //     let (nodes, values) = pmt_state!(Vec<u8>);
+
+    //     let node = pmt_node! { @(nodes, values)
+    //         branch {
+    //             0x0 => leaf { vec![0x00, 0x00] => vec![0x00, 0x00] },
+    //             0x1 => leaf { vec![0x00, 0x10] => vec![0x00, 0x10] },
+    //             0x2 => leaf { vec![0x00, 0x20] => vec![0x00, 0x20] },
+    //             0x3 => leaf { vec![0x00, 0x30] => vec![0x00, 0x30] },
+    //             0x4 => leaf { vec![0x00, 0x40] => vec![0x00, 0x40] },
+    //             0x5 => leaf { vec![0x00, 0x50] => vec![0x00, 0x50] },
+    //             0x6 => leaf { vec![0x00, 0x60] => vec![0x00, 0x60] },
+    //             0x7 => leaf { vec![0x00, 0x70] => vec![0x00, 0x70] },
+    //             0x8 => leaf { vec![0x00, 0x80] => vec![0x00, 0x80] },
+    //             0x9 => leaf { vec![0x00, 0x90] => vec![0x00, 0x90] },
+    //             0xA => leaf { vec![0x00, 0xA0] => vec![0x00, 0xA0] },
+    //             0xB => leaf { vec![0x00, 0xB0] => vec![0x00, 0xB0] },
+    //             0xC => leaf { vec![0x00, 0xC0] => vec![0x00, 0xC0] },
+    //             0xD => leaf { vec![0x00, 0xD0] => vec![0x00, 0xD0] },
+    //             0xE => leaf { vec![0x00, 0xE0] => vec![0x00, 0xE0] },
+    //             0xF => leaf { vec![0x00, 0xF0] => vec![0x00, 0xF0] },
+    //         } with_leaf { vec![0x00] => vec![0x00] }
+    //     };
+
+    //     assert_eq!(node.compute_hash(&nodes, &values, 0).as_ref(), todo!(),);
+    // }
+
+    // TODO: Compute hash with long leaves.
 }
