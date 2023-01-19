@@ -108,8 +108,6 @@ where
 /// Returned by .insert() to update the values' storage.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum InsertAction {
-    // /// No action is required.
-    // Nothing,
     /// An insertion is required. The argument points to a node.
     Insert(NodeRef),
     /// A replacement is required. The argument points to a value.

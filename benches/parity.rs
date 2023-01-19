@@ -1,28 +1,26 @@
-use std::{
-    cell::RefCell,
-    time::{Duration, Instant},
-};
-
 use criterion::{black_box, Bencher};
 use memory_db::{HashKey, MemoryDB};
 use rand::{distributions::Uniform, prelude::Distribution, thread_rng, RngCore};
 use reference_trie::TrieStream;
+use std::{
+    cell::RefCell,
+    time::{Duration, Instant},
+};
 use trie_db::{NodeCodec, TrieDBMutBuilder, TrieHash, TrieLayout, TrieMut};
 
-pub fn bench_get<const N: usize, L: TrieLayout + 'static, S: TrieStream>(
-) -> impl FnMut(&mut Bencher) {
-    // Generate a completely random Patricia Merkle tree.
-
-    //let mut tree = PatriciaMerkleTree::<MyNodePath, i32, Keccak256>::new();
+pub fn bench_get<L, S, const N: usize>() -> impl FnMut(&mut Bencher)
+where
+    L: 'static + TrieLayout,
+    S: TrieStream,
+{
     let mut all_paths = Vec::with_capacity(N);
-
     let value = &[0; 32];
 
     let mut rng = thread_rng();
     let distr = Uniform::from(16..=64);
 
-    //let mut data: Vec<(Vec<u8>, &[u8])> = Vec::new();
-
+    // TODO: I think having the tree generation code in there causes criterion to include it in the
+    //   benchmarked region. Check it.
     move |b| {
         let mut memdb = MemoryDB::<_, HashKey<_>, _>::new(L::Codec::empty_node());
         let mut root = <TrieHash<L>>::default();
@@ -56,7 +54,6 @@ pub fn bench_insert<const N: usize, L: TrieLayout + 'static, S: TrieStream>(
         let mut tree = TrieDBMutBuilder::<L>::new(&mut memdb, &mut root).build();
 
         let mut all_paths = Vec::with_capacity(N);
-
         let value = &[0; 32];
 
         let mut rng = thread_rng();

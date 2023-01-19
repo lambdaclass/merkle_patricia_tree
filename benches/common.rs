@@ -66,7 +66,6 @@ pub fn bench_insert<const N: usize>() -> impl FnMut(&mut Bencher) {
         }
     }
 
-    // tree.reserve(1000000);
     move |b| {
         // This (iter_custom) is required because of a bug in criterion, which will include setup
         // time in the final calculation (which we don't want).

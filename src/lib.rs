@@ -13,7 +13,8 @@ use hashing::NodeHashRef;
 use slab::Slab;
 use std::mem::{replace, size_of};
 
-mod dump;
+#[cfg(feature = "tree-dump")]
+pub mod dump;
 mod hashing;
 mod nibble;
 mod node;

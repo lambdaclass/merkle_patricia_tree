@@ -1,14 +1,10 @@
-//! Temporary (for now). Just for testing.
-
-#![allow(unused)]
-
 use crate::{
     node::Node,
     nodes::{BranchNode, ExtensionNode, LeafNode},
-    NodeRef, PatriciaMerkleTree, ValueRef,
+    NodeRef, PatriciaMerkleTree,
 };
 use digest::Digest;
-use std::{io::Write, iter::repeat};
+use std::io::Write;
 
 pub struct TreeDump<'a, P, V, H, W>
 where

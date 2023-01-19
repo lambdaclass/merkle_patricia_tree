@@ -1,8 +1,7 @@
-use std::time::Duration;
-
 use self::common::{bench_compute_hash, bench_get, bench_insert};
 use criterion::{criterion_group, criterion_main, Criterion};
 use sha3::Keccak256;
+use std::time::Duration;
 
 mod common;
 mod parity;
@@ -55,7 +54,7 @@ fn criterion_benchmark(c: &mut Criterion) {
             >(),
         )
         .bench_function(
-            "1m",
+            "1M",
             parity::bench_get::<
                 1_000_000,
                 reference_trie::ExtensionLayout,
@@ -89,7 +88,7 @@ fn criterion_benchmark(c: &mut Criterion) {
             >(),
         )
         .bench_function(
-            "1m",
+            "1M",
             parity::bench_insert::<
                 1_000_000,
                 reference_trie::ExtensionLayout,
