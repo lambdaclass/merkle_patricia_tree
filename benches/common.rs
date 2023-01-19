@@ -101,8 +101,6 @@ pub fn bench_compute_hash<const N: usize, H: Digest + Clone>() -> impl FnMut(&mu
     let mut tree = PatriciaMerkleTree::<Vec<u8>, Vec<u8>, H>::new();
     let mut all_paths = Vec::with_capacity(N);
 
-    let value = &[0; 32];
-
     let mut rng = thread_rng();
     let distr = Uniform::from(16..=64);
 
@@ -112,7 +110,12 @@ pub fn bench_compute_hash<const N: usize, H: Digest + Clone>() -> impl FnMut(&mu
         let mut path = vec![0; path_len];
         rng.fill_bytes(&mut path);
 
-        if tree.insert(path.clone(), value.to_vec()).is_none() {
+        let value_len = distr.sample(&mut rng) as usize;
+
+        let mut value = vec![0; value_len];
+        rng.fill_bytes(&mut value);
+
+        if tree.insert(path.clone(), value).is_none() {
             all_paths.push(path);
         }
     }
