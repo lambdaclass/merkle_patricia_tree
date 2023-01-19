@@ -1,4 +1,5 @@
 use criterion::{black_box, Bencher};
+use digest::Digest;
 use patricia_merkle_tree::PatriciaMerkleTree;
 use rand::{distributions::Uniform, prelude::Distribution, thread_rng, RngCore};
 use sha3::Keccak256;
@@ -91,6 +92,43 @@ pub fn bench_insert<const N: usize>() -> impl FnMut(&mut Bencher) {
                 delta += measure.elapsed();
             }
 
+            delta
+        });
+    }
+}
+
+pub fn bench_compute_hash<const N: usize, H: Digest + Clone>() -> impl FnMut(&mut Bencher) {
+    let mut tree = PatriciaMerkleTree::<Vec<u8>, Vec<u8>, H>::new();
+    let mut all_paths = Vec::with_capacity(N);
+
+    let mut rng = thread_rng();
+    let distr = Uniform::from(16..=64);
+
+    while all_paths.len() < N {
+        let path_len = distr.sample(&mut rng) as usize;
+
+        let mut path = vec![0; path_len];
+        rng.fill_bytes(&mut path);
+
+        let value_len = distr.sample(&mut rng) as usize;
+
+        let mut value = vec![0; value_len];
+        rng.fill_bytes(&mut value);
+
+        if tree.insert(path.clone(), value).is_none() {
+            all_paths.push(path);
+        }
+    }
+
+    move |b| {
+        b.iter_custom(|num_iters| {
+            let mut delta = Duration::ZERO;
+            for _ in 0..num_iters {
+                let mut tree = tree.clone();
+                let measure = Instant::now();
+                black_box(tree.compute_hash());
+                delta += measure.elapsed();
+            }
             delta
         });
     }
