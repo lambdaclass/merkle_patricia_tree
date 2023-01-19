@@ -43,8 +43,11 @@ where
     }
 }
 
-pub fn bench_insert<const N: usize, L: TrieLayout + 'static, S: TrieStream>(
-) -> impl FnMut(&mut Bencher) {
+pub fn bench_insert<L, S, const N: usize>() -> impl FnMut(&mut Bencher)
+where
+    L: 'static + TrieLayout,
+    S: TrieStream,
+{
     // Generate a completely random Patricia Merkle tree.
     let mut memdb = MemoryDB::<_, HashKey<_>, _>::new(L::Codec::empty_node());
     let mut root = <TrieHash<L>>::default();

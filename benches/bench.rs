@@ -28,73 +28,19 @@ fn criterion_benchmark(c: &mut Criterion) {
         .bench_function("100k", bench_insert::<100_000>())
         .bench_function("1M", bench_insert::<1_000_000>());
 
+    type L = reference_trie::ExtensionLayout;
+    type S = reference_trie::ReferenceTrieStream;
     c.benchmark_group("parity get()")
-        .bench_function(
-            "1k",
-            parity::bench_get::<
-                1_000,
-                reference_trie::ExtensionLayout,
-                reference_trie::ReferenceTrieStream,
-            >(),
-        )
-        .bench_function(
-            "10k",
-            parity::bench_get::<
-                10_000,
-                reference_trie::ExtensionLayout,
-                reference_trie::ReferenceTrieStream,
-            >(),
-        )
-        .bench_function(
-            "100k",
-            parity::bench_get::<
-                100_000,
-                reference_trie::ExtensionLayout,
-                reference_trie::ReferenceTrieStream,
-            >(),
-        )
-        .bench_function(
-            "1M",
-            parity::bench_get::<
-                1_000_000,
-                reference_trie::ExtensionLayout,
-                reference_trie::ReferenceTrieStream,
-            >(),
-        );
+        .bench_function("1k", parity::bench_get::<L, S, 1_000>())
+        .bench_function("10k", parity::bench_get::<L, S, 10_000>())
+        .bench_function("100k", parity::bench_get::<L, S, 100_000>())
+        .bench_function("1M", parity::bench_get::<L, S, 1_000_000>());
 
     c.benchmark_group("parity insert()")
-        .bench_function(
-            "1k",
-            parity::bench_insert::<
-                1_000,
-                reference_trie::ExtensionLayout,
-                reference_trie::ReferenceTrieStream,
-            >(),
-        )
-        .bench_function(
-            "10k",
-            parity::bench_insert::<
-                10_000,
-                reference_trie::ExtensionLayout,
-                reference_trie::ReferenceTrieStream,
-            >(),
-        )
-        .bench_function(
-            "100k",
-            parity::bench_insert::<
-                100_000,
-                reference_trie::ExtensionLayout,
-                reference_trie::ReferenceTrieStream,
-            >(),
-        )
-        .bench_function(
-            "1M",
-            parity::bench_insert::<
-                1_000_000,
-                reference_trie::ExtensionLayout,
-                reference_trie::ReferenceTrieStream,
-            >(),
-        );
+        .bench_function("1k", parity::bench_insert::<L, S, 1_000>())
+        .bench_function("10k", parity::bench_insert::<L, S, 10_000>())
+        .bench_function("100k", parity::bench_insert::<L, S, 100_000>())
+        .bench_function("1M", parity::bench_insert::<L, S, 1_000_000>());
 }
 
 criterion_group!(benches, criterion_benchmark);
