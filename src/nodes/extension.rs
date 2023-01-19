@@ -4,7 +4,7 @@ use crate::{
     nibble::{NibbleSlice, NibbleVec},
     node::{InsertAction, Node},
     nodes::LeafNode,
-    NodeRef, NodesStorage, ValueRef, ValuesStorage,
+    NodeRef, NodesStorage, ValuesStorage,
 };
 use digest::Digest;
 use std::marker::PhantomData;
@@ -90,7 +90,9 @@ where
             let insert_action = insert_action.quantize_self(self.child_ref);
             (self.into(), insert_action)
         } else {
-            let offset = path.clone().count_prefix_vec(&self.prefix);
+            // TODO: Investigate why offset sometimes points after the last nibble in
+            //   `self.split_extract_at()` causing an assert to fail.
+            let offset = path.count_prefix_vec(&self.prefix);
             let (left_prefix, choice, right_prefix) = self.prefix.split_extract_at(offset);
 
             let left_prefix = (!left_prefix.is_empty()).then_some(left_prefix);
@@ -104,9 +106,15 @@ where
                 .unwrap_or(*self.child_ref);
 
             // Branch node (child is prefix right or self.child_ref).
-            let mut branch_node = BranchNode::new({
+            let mut insert_node_ref = None;
+            let branch_node = BranchNode::new({
                 let mut choices = [Default::default(); 16];
                 choices[choice as usize] = NodeRef::new(right_prefix_node);
+                if let Some(c) = path.next() {
+                    choices[c as usize] =
+                        NodeRef::new(nodes.insert(LeafNode::new(Default::default()).into()));
+                    insert_node_ref = Some(choices[c as usize]);
+                }
                 choices
             });
 
@@ -117,16 +125,11 @@ where
 
                     (
                         ExtensionNode::new(left_prefix, branch_ref).into(),
-                        InsertAction::Insert(branch_ref),
+                        InsertAction::Insert(insert_node_ref.unwrap_or(branch_ref)),
                     )
                 }
-                None => match path.next() {
-                    Some(choice) => {
-                        let child_ref =
-                            NodeRef::new(nodes.insert(LeafNode::new(ValueRef::default()).into()));
-                        branch_node.choices[choice as usize] = child_ref;
-                        (branch_node.into(), InsertAction::Insert(child_ref))
-                    }
+                None => match insert_node_ref {
+                    Some(child_ref) => (branch_node.into(), InsertAction::Insert(child_ref)),
                     None => (branch_node.into(), InsertAction::InsertSelf),
                 },
             }
@@ -148,15 +151,18 @@ where
                 child_node.compute_hash(nodes, values, key_offset + self.prefix.len());
 
             let prefix_len = NodeHasher::<H>::path_len_vec(&self.prefix);
-            let child_len = NodeHasher::<H>::bytes_len(
-                child_hash_ref.as_ref().len(),
-                child_hash_ref.as_ref().first().copied().unwrap_or_default(),
-            );
+            let child_len = match &child_hash_ref {
+                NodeHashRef::Inline(x) => x.len(),
+                NodeHashRef::Hashed(x) => NodeHasher::<H>::bytes_len(x.len(), x[0]),
+            };
 
             let mut hasher = NodeHasher::new(&self.hash);
             hasher.write_list_header(prefix_len + child_len);
             hasher.write_path_vec(&self.prefix, PathKind::Extension);
-            hasher.write_raw(child_hash_ref.as_ref());
+            match child_hash_ref {
+                NodeHashRef::Inline(x) => hasher.write_raw(&x),
+                NodeHashRef::Hashed(x) => hasher.write_bytes(&x),
+            }
             hasher.finalize()
         })
     }

@@ -208,10 +208,12 @@ impl<'a> NibbleSlice<'a> {
             }
         }
         eq_count += byte_nibble_count;
-        self.offset_add(byte_nibble_count);
+        self.offset += byte_nibble_count;
 
         // Compare last nibble (if not byte-aligned).
-        if other.last_is_half && self.next().map(u8::from) == other.data.last().map(|x| x >> 4) {
+        if other.last_is_half
+            && self.clone().next().map(u8::from) == other.data.last().map(|x| x >> 4)
+        {
             eq_count += 1;
         }
 
@@ -321,7 +323,7 @@ impl NibbleVec {
     }
 
     pub fn len(&self) -> usize {
-        self.data.len() - self.first_is_half as usize - self.last_is_half as usize
+        2 * self.data.len() - self.first_is_half as usize - self.last_is_half as usize
     }
 
     pub fn iter(&self) -> NibbleVecIter {
@@ -332,12 +334,6 @@ impl NibbleVec {
     }
 
     pub fn split_extract_at(self, index: usize) -> (NibbleVec, Nibble, NibbleVec) {
-        // println!("  data = {:x?}", self.data.as_slice());
-        // println!("  first_is_half = {}", self.first_is_half);
-        // println!("   last_is_half = {}", self.last_is_half);
-        // println!("  index = {index}");
-        // println!();
-
         let offset = (index + 1 + self.first_is_half as usize) >> 1;
         let mut left_vec = NibbleVec {
             data: SmallVec::from_slice(&self.data[..offset]),
@@ -345,13 +341,12 @@ impl NibbleVec {
             last_is_half: (index + self.first_is_half as usize) % 2 != 0,
         };
         left_vec.normalize();
-        // println!("left_vec = {left_vec:x?}");
 
         let offset = index + self.first_is_half as usize;
         // Check out of bounds for last half-byte.
         assert!(
             ((offset + self.last_is_half as usize) >> 1) < self.data.len(),
-            "out of bounds",
+            "out of bounds"
         );
         let value = if offset % 2 != 0 {
             self.data[offset >> 1] & 0x0F
@@ -362,7 +357,6 @@ impl NibbleVec {
             Ok(x) => x,
             Err(_) => unreachable!(),
         };
-        // println!("value = {value:?}");
 
         let offset = (index + 1 + self.first_is_half as usize) >> 1;
         let mut right_vec = NibbleVec {
@@ -375,8 +369,6 @@ impl NibbleVec {
             last_is_half: self.last_is_half,
         };
         right_vec.normalize();
-        // println!("right_vec = {right_vec:x?}");
-        // println!();
 
         (left_vec, value, right_vec)
     }

@@ -48,6 +48,8 @@ where
             self.write_node(self.parent.root_ref);
             writeln!(self.writer).unwrap();
         }
+
+        writeln!(self.writer).unwrap();
     }
 
     fn write_node(&mut self, node_ref: NodeRef) {

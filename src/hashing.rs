@@ -139,7 +139,9 @@ where
         };
 
         let i2 = nibble_iter.clone().skip(1).step_by(2);
-        self.write_len(0x80, 0xB7, (nibble_count >> 1) + 1);
+        if nibble_count > 1 {
+            self.write_len(0x80, 0xB7, (nibble_count >> 1) + 1);
+        }
         self.write_raw(&[flag]);
         for (a, b) in nibble_iter.step_by(2).zip(i2) {
             self.write_raw(&[((a as u8) << 4) | (b as u8)]);
@@ -161,7 +163,9 @@ where
         };
 
         let i2 = nibble_iter.clone().skip(1).step_by(2);
-        self.write_len(0x80, 0xB7, (nibble_count >> 1) + 1);
+        if nibble_count > 1 {
+            self.write_len(0x80, 0xB7, (nibble_count >> 1) + 1);
+        }
         self.write_raw(&[flag]);
         for (a, b) in nibble_iter.step_by(2).zip(i2) {
             self.write_raw(&[((a as u8) << 4) | (b as u8)]);

@@ -124,11 +124,11 @@ where
     }
 
     /// Return the root hash of the tree (or recompute if needed).
-    pub fn compute_hash(&mut self) -> Option<&Output<H>> {
+    pub fn compute_hash(&mut self) -> &Output<H> {
         if self.hash.0 {
-            Some(&self.hash.1)
+            &self.hash.1
         } else {
-            self.root_ref.is_valid().then(|| {
+            if self.root_ref.is_valid() {
                 let root_node = self
                     .nodes
                     .get(*self.root_ref)
@@ -142,8 +142,15 @@ where
                 }
 
                 self.hash.0 = true;
-                &self.hash.1
-            })
+            } else {
+                H::new()
+                    .chain_update([0x80])
+                    .finalize_into(&mut self.hash.1);
+
+                self.hash.0 = true;
+            }
+
+            &self.hash.1
         }
     }
 
@@ -172,16 +179,12 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::dump::TreeDump;
     use crate::*;
-    use hex_literal::hex;
     use keccak_hasher::KeccakHasher;
     use proptest::collection::{btree_set, vec};
     use proptest::prelude::*;
     use reference_trie::ReferenceTrieStream;
     use sha3::Keccak256;
-    use std::io::stdout;
-    use trie_root::unhashed_trie;
 
     // #[test]
     // fn compute_hash() {
@@ -226,7 +229,6 @@ mod test {
             let item = item.unwrap();
             assert_eq!(item, &value);
         }
-
 
         #[test]
         fn proptest_get_inserted_multiple(paths in btree_set(vec(any::<u8>(), 1..100), 1..100)) {
@@ -418,7 +420,7 @@ mod test {
             tree.insert(key, val);
         }
 
-        let hash = tree.compute_hash().unwrap();
+        let hash = tree.compute_hash();
         format!("{hash:x}")
     }
 
@@ -427,37 +429,5 @@ mod test {
         let hash =
             trie_root::<KeccakHasher, ReferenceTrieStream, _, _, _>(data, Default::default());
         hash.iter().map(|b| format!("{b:02x}")).collect()
-    }
-
-    #[test]
-    fn test() {
-        let mut tree = PatriciaMerkleTree::<&[u8], &[u8], Keccak256>::new();
-        tree.insert(b"doe", b"reindeer");
-        tree.insert(b"dog", b"puppy");
-        tree.insert(b"dogglesworth", b"cat");
-
-        {
-            let mut out = stdout().lock();
-            TreeDump::new(&tree, &mut out, 0).dump();
-        }
-
-        let hash = tree.compute_hash().unwrap();
-        println!("{hash:02x}");
-        todo!("intentionally crashed")
-    }
-
-    #[test]
-    fn test_parity() {
-        let v: Vec<(&[u8], &[u8])> = vec![
-            (b"doe", b"reindeer"),
-            (b"dog", b"puppy"),
-            (b"dogglesworth", b"cat"),
-        ];
-
-        let root = hex!["0807d5393ae7f349481063ebb5dbaf6bda58db282a385ca97f37dccba717cb79"];
-        assert_eq!(
-            unhashed_trie::<KeccakHasher, ReferenceTrieStream, _, _, _>(v, Default::default()),
-            root
-        );
     }
 }

@@ -142,9 +142,10 @@ where
 
                             let child_hash_ref =
                                 child_node.compute_hash(nodes, values, key_offset + 1);
-                            // TODO: Should this be bytes or raw? Maybe it depends on whether it's
-                            //   hashed or inlined?
-                            child_hash_ref.as_ref().len()
+                            match child_hash_ref {
+                                NodeHashRef::Inline(x) => x.len(),
+                                NodeHashRef::Hashed(x) => NodeHasher::<H>::bytes_len(x.len(), x[0]),
+                            }
                         })
                         .unwrap_or(1)
                 })
@@ -159,6 +160,8 @@ where
                     value.as_ref().len(),
                     value.as_ref().first().copied().unwrap_or_default(),
                 );
+            } else {
+                children_len += 1;
             }
 
             let mut hasher = NodeHasher::new(&self.hash);
@@ -170,10 +173,11 @@ where
                         .get(**choice)
                         .expect("inconsistent internal tree structure");
 
-                    let child_hash = child_node.compute_hash(nodes, values, key_offset + 1);
-                    // TODO: Should this be bytes or raw? Maybe it depends on whether it's
-                    //   hashed or inlined?
-                    hasher.write_raw(child_hash.as_ref());
+                    let child_hash_ref = child_node.compute_hash(nodes, values, key_offset + 1);
+                    match child_hash_ref {
+                        NodeHashRef::Inline(x) => hasher.write_raw(&x),
+                        NodeHashRef::Hashed(x) => hasher.write_bytes(&x),
+                    }
                 } else {
                     hasher.write_bytes(&[]);
                 }
