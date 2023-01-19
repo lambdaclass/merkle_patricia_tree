@@ -78,12 +78,11 @@ where
             let value_ref = self.value_ref;
             (self.into(), InsertAction::Replace(value_ref))
         } else {
-            // TODO: Implement dedicated method (half-byte avoid iterators).
-            let offset = NibbleSlice::new(value_path.as_ref())
-                .skip(path.offset())
-                .zip(path.clone())
-                .take_while(|(a, b)| a == b)
-                .count();
+            let offset = path.clone().count_prefix_slice(&{
+                let mut value_path = NibbleSlice::new(value_path.as_ref());
+                value_path.offset_add(path.offset());
+                value_path
+            });
 
             let mut path_branch = path.clone();
             path_branch.offset_add(offset);

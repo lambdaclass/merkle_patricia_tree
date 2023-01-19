@@ -90,19 +90,7 @@ where
             let insert_action = insert_action.quantize_self(self.child_ref);
             (self.into(), insert_action)
         } else {
-            // TODO: Implement dedicated method (avoid half-byte iterators).
-            let offset = self
-                .prefix
-                .iter()
-                .zip(path.clone())
-                .take_while(|(a, b)| a == b)
-                .count();
-            assert!(
-                offset < self.prefix.iter().count(),
-                "{:#02x?}, {:#02x?}",
-                self.prefix,
-                path
-            );
+            let offset = path.clone().count_prefix_vec(&self.prefix);
             let (left_prefix, choice, right_prefix) = self.prefix.split_extract_at(offset);
 
             let left_prefix = (!left_prefix.is_empty()).then_some(left_prefix);

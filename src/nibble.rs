@@ -170,20 +170,81 @@ impl<'a> NibbleSlice<'a> {
         self_slice == othr_slice
     }
 
-    // pub fn peek(&self) -> Option<Nibble> {
-    //     self.data.get(self.offset >> 1).map(|byte| {
-    //         let byte = if self.offset % 2 != 0 {
-    //             byte & 0x0F
-    //         } else {
-    //             byte >> 4
-    //         };
+    pub fn count_prefix_vec(&mut self, other: &NibbleVec) -> usize {
+        if other.data.is_empty() {
+            return 0;
+        }
 
-    //         match Nibble::try_from(byte) {
-    //             Ok(x) => x,
-    //             Err(_) => unreachable!(),
-    //         }
-    //     })
-    // }
+        // Check alignment and length.
+        assert_eq!(self.offset % 2 != 0, other.first_is_half);
+
+        // Compare first nibble (if not byte-aligned).
+        let mut eq_count = 0;
+        if other.first_is_half {
+            if self.next().map(u8::from) == Some(other.data[0] & 0x0F) {
+                eq_count += 1;
+            } else {
+                return 0;
+            }
+        }
+
+        // Compare middle bytes.
+        let mut byte_nibble_count = 0;
+        for (a, b) in self.data.iter().zip(
+            &other.data
+                [other.first_is_half as usize..other.data.len() - (other.last_is_half as usize)],
+        ) {
+            if a == b {
+                byte_nibble_count += 2;
+            } else if (a & 0xF0) == (b & 0xF0) {
+                byte_nibble_count += 1;
+                break;
+            } else {
+                break;
+            }
+        }
+        eq_count += byte_nibble_count;
+        self.offset_add(byte_nibble_count);
+
+        // Compare last nibble (if not byte-aligned).
+        if other.last_is_half && self.next().map(u8::from) == other.data.last().map(|x| x >> 4) {
+            eq_count += 1;
+        }
+
+        eq_count
+    }
+
+    pub fn count_prefix_slice(&self, other: &NibbleSlice) -> usize {
+        // Check offset (and therefore alignment implicitly).
+        assert_eq!(self.offset, other.offset);
+
+        // Check first nibble (if not byte-aligned).
+        let mut eq_count = 0;
+        if self.offset % 2 != 0 {
+            if (self.data[self.offset >> 1] & 0x0F) == (other.data[self.offset >> 1] & 0x0F) {
+                eq_count += 1;
+            } else {
+                return 0;
+            }
+        }
+
+        // Compare the rest.
+        for (a, b) in self.data[(self.offset + 1) >> 1..]
+            .iter()
+            .zip(&other.data[(self.offset + 1) >> 1..])
+        {
+            if a == b {
+                eq_count += 2;
+            } else if (a & 0xF0) == (b & 0xF0) {
+                eq_count += 1;
+                break;
+            } else {
+                break;
+            }
+        }
+
+        eq_count
+    }
 }
 
 impl<'a> AsRef<[u8]> for NibbleSlice<'a> {

@@ -98,7 +98,7 @@ pub fn bench_insert<const N: usize, L: TrieLayout + 'static, S: TrieStream>(
             let mut delta = Duration::ZERO;
             for offset in (0..num_iters).step_by(STEP) {
                 let mut memdb = memdb.borrow().clone();
-                let mut root = root.borrow().clone();
+                let mut root = *root.borrow();
                 let mut tree = TrieDBMutBuilder::<L>::new(&mut memdb, &mut root).build();
 
                 // To make measurements more effective, values are inserted STEP at a time, making

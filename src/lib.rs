@@ -419,14 +419,14 @@ mod test {
         }
 
         let hash = tree.compute_hash().unwrap();
-        format!("{:x}", hash)
+        format!("{hash:x}")
     }
 
     fn compute_hash_trie(data: Vec<(Vec<u8>, Vec<u8>)>) -> String {
         use trie_root::trie_root;
         let hash =
             trie_root::<KeccakHasher, ReferenceTrieStream, _, _, _>(data, Default::default());
-        hash.iter().map(|b| format!("{:02x}", b)).collect()
+        hash.iter().map(|b| format!("{b:02x}")).collect()
     }
 
     #[test]
