@@ -1,4 +1,4 @@
-//! Tests shamelessly copied from [](https://github.com/ethereum/tests/blob/develop/TrieTests/trietest.json).
+//! Tests shamelessly copied from [here](https://github.com/ethereum/tests/blob/develop/TrieTests/trietest.json).
 
 use hex_literal::hex;
 use patricia_merkle_tree::PatriciaMerkleTree;
