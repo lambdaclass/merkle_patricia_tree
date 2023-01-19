@@ -145,7 +145,7 @@ where
                 .expect("inconsistent internal tree structure");
 
             let child_hash_ref =
-                child_node.compute_hash(nodes, values, key_offset + self.prefix.iter().count());
+                child_node.compute_hash(nodes, values, key_offset + self.prefix.len());
 
             let prefix_len = NodeHasher::<H>::path_len_vec(&self.prefix);
             let child_len = NodeHasher::<H>::bytes_len(
@@ -173,7 +173,7 @@ mod test {
         let node =
             ExtensionNode::<Vec<u8>, Vec<u8>, Keccak256>::new(NibbleVec::new(), Default::default());
 
-        assert_eq!(node.prefix.iter().count(), 0);
+        assert_eq!(node.prefix.len(), 0);
         assert_eq!(node.child_ref, NodeRef::default());
     }
 

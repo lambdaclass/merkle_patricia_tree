@@ -72,6 +72,10 @@ impl<'a> NibbleSlice<'a> {
         }
     }
 
+    pub fn len(&self) -> usize {
+        2 * self.data.len() - self.offset
+    }
+
     pub fn offset(&self) -> usize {
         self.offset
     }
@@ -314,6 +318,10 @@ impl NibbleVec {
 
     pub fn is_empty(&self) -> bool {
         self.data.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.data.len() - self.first_is_half as usize - self.last_is_half as usize
     }
 
     pub fn iter(&self) -> NibbleVecIter {

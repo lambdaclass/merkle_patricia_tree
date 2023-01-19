@@ -104,7 +104,6 @@ where
                 let child_ref = nodes.insert(LeafNode::new(Default::default()).into());
                 let mut branch_node = BranchNode::new({
                     let mut choices = [Default::default(); 16];
-                    // TODO: Dedicated method.
                     choices[path_branch.next().unwrap() as usize] = NodeRef::new(child_ref);
                     choices
                 });
@@ -121,7 +120,6 @@ where
                         choices[NibbleSlice::new(value_path.as_ref())
                             .nth(absolute_offset)
                             .unwrap() as usize] = NodeRef::new(nodes.insert(self.into()));
-                        // TODO: Dedicated method.
                         choices[path_branch.next().unwrap() as usize] = NodeRef::new(child_ref);
                         choices
                     }),

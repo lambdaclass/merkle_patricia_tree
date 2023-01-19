@@ -108,12 +108,12 @@ where
 
     pub fn path_len_vec(value: &NibbleVec) -> usize {
         // TODO: Do not use iterators.
-        Self::bytes_len((value.iter().count() >> 1) + 1, 0)
+        Self::bytes_len((value.len() >> 1) + 1, 0)
     }
 
     pub fn path_len_slice(value: &NibbleSlice) -> usize {
         // TODO: Do not use iterators.
-        Self::bytes_len((value.clone().count() >> 1) + 1, 0)
+        Self::bytes_len((value.len() >> 1) + 1, 0)
     }
 
     pub fn bytes_len(value_len: usize, first_value: u8) -> usize {
@@ -128,7 +128,7 @@ where
         let mut flag = kind.into_flag();
 
         // TODO: Do not use iterators.
-        let nibble_count = value.iter().count();
+        let nibble_count = value.len();
         let nibble_iter = if nibble_count & 0x01 != 0 {
             let mut iter = value.iter();
             flag |= 0x10;
