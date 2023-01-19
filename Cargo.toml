@@ -24,3 +24,4 @@ hex-literal = "0.3.4"
 keccak-hasher = "0.15.3"
 reference-trie = "0.26.0"
 trie-root = "0.17.0"
+# poseidon = { git = "https://github.com/keep-starknet-strange/poseidon-rs", rev = "5fa9c59669c9b2f24baa8c7d9e2e49539fd2c971" }
