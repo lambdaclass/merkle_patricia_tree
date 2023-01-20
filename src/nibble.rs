@@ -194,7 +194,8 @@ impl<'a> NibbleSlice<'a> {
 
         // Compare middle bytes.
         let mut byte_nibble_count = 0;
-        for (a, b) in self.data.iter().zip(
+        let mut check_last_half = true;
+        for (a, b) in self.data[(self.offset + 1) >> 1..].iter().zip(
             &other.data
                 [other.first_is_half as usize..other.data.len() - (other.last_is_half as usize)],
         ) {
@@ -202,8 +203,10 @@ impl<'a> NibbleSlice<'a> {
                 byte_nibble_count += 2;
             } else if (a & 0xF0) == (b & 0xF0) {
                 byte_nibble_count += 1;
+                check_last_half = false;
                 break;
             } else {
+                check_last_half = false;
                 break;
             }
         }
@@ -211,7 +214,8 @@ impl<'a> NibbleSlice<'a> {
         self.offset += byte_nibble_count;
 
         // Compare last nibble (if not byte-aligned).
-        if other.last_is_half
+        if check_last_half
+            && other.last_is_half
             && self.clone().next().map(u8::from) == other.data.last().map(|x| x >> 4)
         {
             eq_count += 1;
