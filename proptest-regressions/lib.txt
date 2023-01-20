@@ -6,3 +6,6 @@
 # everyone who runs the test benefits from these saved cases.
 cc 3aeaf4afbd05f2ad2b56b3cf693c831caba1053bf5899f81b2ff1648ade002d9 # shrinks to paths = {[0], [89], [89, 0], [90, 0]}
 cc b949d3c26844b864b3c239ddaecaba0fbbafd92b56820757b097a412c85ce858 # shrinks to data = {([0], [0]), ([65], [0])}
+cc afa9e8a3b43958734549f5e3bff493a76b3c745837f7965468878f6a8cd5e954 # shrinks to paths = {[4], [4, 0], [5]}
+cc 8e392d9972a419f446f703d42ace9f4a515df72e19c1bb0fad5d4bf60171d14e # shrinks to data = {([15, 16], [0]), ([15, 17], [0]), ([16], [0])}
+cc 2eef9e726223585b9aeb07566672bf15781d2b2c90de0dd66d2bc5bd93e25161 # shrinks to paths = {[0], [36, 112], [36, 112, 0], [36, 113]}
