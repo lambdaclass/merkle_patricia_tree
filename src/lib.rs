@@ -226,9 +226,9 @@ mod test {
 
             tree.insert(path.clone(), value.clone());
             let item = tree.get(&path);
-            assert!(item.is_some());
+            prop_assert!(item.is_some());
             let item = item.unwrap();
-            assert_eq!(item, &value);
+            prop_assert_eq!(item, &value);
         }
 
         #[test]
@@ -244,8 +244,8 @@ mod test {
 
             for (path, value) in paths.iter().zip(values.iter()) {
                 let item = tree.get(path);
-                assert!(item.is_some());
-                assert_eq!(item.unwrap(), value);
+                prop_assert!(item.is_some());
+                prop_assert_eq!(item.unwrap(), value);
             }
         }
     }
