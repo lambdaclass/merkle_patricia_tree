@@ -4,4 +4,5 @@
 #
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
-cc e938b31467d640ced0053b28a634a4301caf85711660a4a0e14dfd83682564fb # shrinks to paths = {[0], [23], [23, 0], [24, 0]}
+cc 3aeaf4afbd05f2ad2b56b3cf693c831caba1053bf5899f81b2ff1648ade002d9 # shrinks to paths = {[0], [89], [89, 0], [90, 0]}
+cc b949d3c26844b864b3c239ddaecaba0fbbafd92b56820757b097a412c85ce858 # shrinks to data = {([0], [0]), ([65], [0])}

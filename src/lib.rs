@@ -400,21 +400,28 @@ mod test {
             (b"doe".to_vec(), b"reindeer".to_vec()),
             (b"dog".to_vec(), b"puppy".to_vec()),
             (b"dogglesworth".to_vec(), b"cat".to_vec()),
-        ]);
+        ])
+        .unwrap();
     }
 
     proptest! {
         #[test]
         fn proptest_compare_hashes_simple(path in vec(any::<u8>(), 1..32), value in vec(any::<u8>(), 1..100)) {
-            expect_hash(vec![(path, value)]);
+            expect_hash(vec![(path, value)])?;
+        }
+
+        #[test]
+        fn proptest_compare_hashes_multiple(data in btree_set((vec(any::<u8>(), 1..32), vec(any::<u8>(), 1..100)), 1..100)) {
+            expect_hash(data.into_iter().collect())?;
         }
     }
 
-    fn expect_hash(data: Vec<(Vec<u8>, Vec<u8>)>) {
-        assert_eq!(
+    fn expect_hash(data: Vec<(Vec<u8>, Vec<u8>)>) -> Result<(), TestCaseError> {
+        prop_assert_eq!(
             compute_hash_cita_trie(data.clone()),
             compute_hash_ours(data)
         );
+        Ok(())
     }
 
     fn compute_hash_ours(data: Vec<(Vec<u8>, Vec<u8>)>) -> String {
