@@ -347,95 +347,113 @@ mod test {
         assert_eq!(insert_action, InsertAction::InsertSelf);
     }
 
-    // #[test]
-    // fn compute_hash_two_choices() {
-    //     let (mut nodes, mut values) = pmt_state!(Vec<u8>);
+    #[test]
+    fn compute_hash_two_choices() {
+        let (mut nodes, mut values) = pmt_state!(Vec<u8>);
 
-    //     let node = pmt_node! { @(nodes, values)
-    //         branch {
-    //             2 => leaf { vec![0x20] => vec![0x20] },
-    //             4 => leaf { vec![0x40] => vec![0x40] },
-    //         }
-    //     };
+        let node = pmt_node! { @(nodes, values)
+            branch {
+                2 => leaf { vec![0x20] => vec![0x20] },
+                4 => leaf { vec![0x40] => vec![0x40] },
+            }
+        };
 
-    //     assert_eq!(
-    //         node.compute_hash(&nodes, &values, 0).as_ref(),
-    //         &[
-    //             0xD5, 0x80, 0x80, 0xC2, 0x30, 0x20, 0x80, 0xC2, 0x30, 0x40, 0x80, 0x80, 0x80, 0x80,
-    //             0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80
-    //         ],
-    //     );
-    // }
+        assert_eq!(
+            node.compute_hash(&nodes, &values, 0).as_ref(),
+            &[
+                0xD5, 0x80, 0x80, 0xC2, 0x30, 0x20, 0x80, 0xC2, 0x30, 0x40, 0x80, 0x80, 0x80, 0x80,
+                0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80,
+            ],
+        );
+    }
 
-    // #[test]
-    // fn compute_hash_all_choices() {
-    //     let (nodes, values) = pmt_state!(Vec<u8>);
+    #[test]
+    fn compute_hash_all_choices() {
+        let (mut nodes, mut values) = pmt_state!(Vec<u8>);
 
-    //     let node = pmt_node! { @(nodes, values)
-    //         branch {
-    //             0x0 => leaf { vec![0x00] => vec![0x00] },
-    //             0x1 => leaf { vec![0x10] => vec![0x10] },
-    //             0x2 => leaf { vec![0x20] => vec![0x20] },
-    //             0x3 => leaf { vec![0x30] => vec![0x30] },
-    //             0x4 => leaf { vec![0x40] => vec![0x40] },
-    //             0x5 => leaf { vec![0x50] => vec![0x50] },
-    //             0x6 => leaf { vec![0x60] => vec![0x60] },
-    //             0x7 => leaf { vec![0x70] => vec![0x70] },
-    //             0x8 => leaf { vec![0x80] => vec![0x80] },
-    //             0x9 => leaf { vec![0x90] => vec![0x90] },
-    //             0xA => leaf { vec![0xA0] => vec![0xA0] },
-    //             0xB => leaf { vec![0xB0] => vec![0xB0] },
-    //             0xC => leaf { vec![0xC0] => vec![0xC0] },
-    //             0xD => leaf { vec![0xD0] => vec![0xD0] },
-    //             0xE => leaf { vec![0xE0] => vec![0xE0] },
-    //             0xF => leaf { vec![0xF0] => vec![0xF0] },
-    //         }
-    //     };
+        let node = pmt_node! { @(nodes, values)
+            branch {
+                0x0 => leaf { vec![0x00] => vec![0x00] },
+                0x1 => leaf { vec![0x10] => vec![0x10] },
+                0x2 => leaf { vec![0x20] => vec![0x20] },
+                0x3 => leaf { vec![0x30] => vec![0x30] },
+                0x4 => leaf { vec![0x40] => vec![0x40] },
+                0x5 => leaf { vec![0x50] => vec![0x50] },
+                0x6 => leaf { vec![0x60] => vec![0x60] },
+                0x7 => leaf { vec![0x70] => vec![0x70] },
+                0x8 => leaf { vec![0x80] => vec![0x80] },
+                0x9 => leaf { vec![0x90] => vec![0x90] },
+                0xA => leaf { vec![0xA0] => vec![0xA0] },
+                0xB => leaf { vec![0xB0] => vec![0xB0] },
+                0xC => leaf { vec![0xC0] => vec![0xC0] },
+                0xD => leaf { vec![0xD0] => vec![0xD0] },
+                0xE => leaf { vec![0xE0] => vec![0xE0] },
+                0xF => leaf { vec![0xF0] => vec![0xF0] },
+            }
+        };
 
-    //     assert_eq!(node.compute_hash(&nodes, &values, 0).as_ref(), todo!(),);
-    // }
+        assert_eq!(
+            node.compute_hash(&nodes, &values, 0).as_ref(),
+            &[
+                0x0A, 0x3C, 0x06, 0x2D, 0x4A, 0xE3, 0x61, 0xEC, 0xC4, 0x82, 0x07, 0xB3, 0x2A, 0xDB,
+                0x6A, 0x3A, 0x3F, 0x3E, 0x98, 0x33, 0xC8, 0x9C, 0x9A, 0x71, 0x66, 0x3F, 0x4E, 0xB5,
+                0x61, 0x72, 0xD4, 0x9D,
+            ],
+        );
+    }
 
-    // #[test]
-    // fn compute_hash_one_choice_with_value() {
-    //     let (nodes, values) = pmt_state!(Vec<u8>);
+    #[test]
+    fn compute_hash_one_choice_with_value() {
+        let (mut nodes, mut values) = pmt_state!(Vec<u8>);
 
-    //     let node = pmt_node! { @(nodes, values)
-    //         branch {
-    //             2 => leaf { vec![0x00, 0x20] => vec![0x00, 0x20] },
-    //             4 => leaf { vec![0x00, 0x40] => vec![0x00, 0x40] },
-    //         } with_leaf { vec![0x00] => vec![] }
-    //     };
+        let node = pmt_node! { @(nodes, values)
+            branch {
+                2 => leaf { vec![0x20] => vec![0x20] },
+                4 => leaf { vec![0x40] => vec![0x40] },
+            } with_leaf { vec![] => vec![] }
+        };
 
-    //     assert_eq!(node.compute_hash(&nodes, &values, 0).as_ref(), todo!(),);
-    // }
+        assert_eq!(
+            node.compute_hash(&nodes, &values, 0).as_ref(),
+            &[
+                0xD5, 0x80, 0x80, 0xC2, 0x30, 0x20, 0x80, 0xC2, 0x30, 0x40, 0x80, 0x80, 0x80, 0x80,
+                0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80,
+            ],
+        );
+    }
 
-    // #[test]
-    // fn compute_hash_all_choices_with_value() {
-    //     let (nodes, values) = pmt_state!(Vec<u8>);
+    #[test]
+    fn compute_hash_all_choices_with_value() {
+        let (mut nodes, mut values) = pmt_state!(Vec<u8>);
 
-    //     let node = pmt_node! { @(nodes, values)
-    //         branch {
-    //             0x0 => leaf { vec![0x00, 0x00] => vec![0x00, 0x00] },
-    //             0x1 => leaf { vec![0x00, 0x10] => vec![0x00, 0x10] },
-    //             0x2 => leaf { vec![0x00, 0x20] => vec![0x00, 0x20] },
-    //             0x3 => leaf { vec![0x00, 0x30] => vec![0x00, 0x30] },
-    //             0x4 => leaf { vec![0x00, 0x40] => vec![0x00, 0x40] },
-    //             0x5 => leaf { vec![0x00, 0x50] => vec![0x00, 0x50] },
-    //             0x6 => leaf { vec![0x00, 0x60] => vec![0x00, 0x60] },
-    //             0x7 => leaf { vec![0x00, 0x70] => vec![0x00, 0x70] },
-    //             0x8 => leaf { vec![0x00, 0x80] => vec![0x00, 0x80] },
-    //             0x9 => leaf { vec![0x00, 0x90] => vec![0x00, 0x90] },
-    //             0xA => leaf { vec![0x00, 0xA0] => vec![0x00, 0xA0] },
-    //             0xB => leaf { vec![0x00, 0xB0] => vec![0x00, 0xB0] },
-    //             0xC => leaf { vec![0x00, 0xC0] => vec![0x00, 0xC0] },
-    //             0xD => leaf { vec![0x00, 0xD0] => vec![0x00, 0xD0] },
-    //             0xE => leaf { vec![0x00, 0xE0] => vec![0x00, 0xE0] },
-    //             0xF => leaf { vec![0x00, 0xF0] => vec![0x00, 0xF0] },
-    //         } with_leaf { vec![0x00] => vec![0x00] }
-    //     };
+        let node = pmt_node! { @(nodes, values)
+            branch {
+                0x0 => leaf { vec![0x00] => vec![0x00] },
+                0x1 => leaf { vec![0x10] => vec![0x10] },
+                0x2 => leaf { vec![0x20] => vec![0x20] },
+                0x3 => leaf { vec![0x30] => vec![0x30] },
+                0x4 => leaf { vec![0x40] => vec![0x40] },
+                0x5 => leaf { vec![0x50] => vec![0x50] },
+                0x6 => leaf { vec![0x60] => vec![0x60] },
+                0x7 => leaf { vec![0x70] => vec![0x70] },
+                0x8 => leaf { vec![0x80] => vec![0x80] },
+                0x9 => leaf { vec![0x90] => vec![0x90] },
+                0xA => leaf { vec![0xA0] => vec![0xA0] },
+                0xB => leaf { vec![0xB0] => vec![0xB0] },
+                0xC => leaf { vec![0xC0] => vec![0xC0] },
+                0xD => leaf { vec![0xD0] => vec![0xD0] },
+                0xE => leaf { vec![0xE0] => vec![0xE0] },
+                0xF => leaf { vec![0xF0] => vec![0xF0] },
+            } with_leaf { vec![] => vec![] }
+        };
 
-    //     assert_eq!(node.compute_hash(&nodes, &values, 0).as_ref(), todo!(),);
-    // }
-
-    // TODO: Compute hash with long leaves.
+        assert_eq!(
+            node.compute_hash(&nodes, &values, 0).as_ref(),
+            &[
+                0xFD, 0xC4, 0xF1, 0x6B, 0x2A, 0x04, 0xEF, 0xAC, 0x1E, 0x20, 0x35, 0x8F, 0x95, 0x27,
+                0xC0, 0x40, 0x4A, 0x90, 0xD9, 0xBF, 0x04, 0xBE, 0xD3, 0x78, 0x44, 0x16, 0x12, 0x0B,
+                0x46, 0x2C, 0x62, 0x5D,
+            ],
+        );
+    }
 }

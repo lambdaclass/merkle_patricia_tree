@@ -331,8 +331,47 @@ mod test {
         assert_eq!(insert_action, InsertAction::Insert(NodeRef::new(3)));
     }
 
-    // #[test]
-    // fn compute_hash() {
-    //     todo!()
-    // }
+    #[test]
+    fn compute_hash() {
+        let (mut nodes, mut values) = pmt_state!(Vec<u8>);
+
+        let node = pmt_node! { @(nodes, values)
+            extension { [0, 0], branch {
+                0 => leaf { vec![0x00, 0x00] => vec![0x12, 0x34] },
+                1 => leaf { vec![0x00, 0x10] => vec![0x56, 0x78] },
+            } }
+        };
+
+        let node_hash_ref = node.compute_hash(&nodes, &values, 0);
+        assert_eq!(
+            node_hash_ref.as_ref(),
+            &[
+                0xDD, 0x82, 0x00, 0x00, 0xD9, 0xC4, 0x30, 0x82, 0x12, 0x34, 0xC4, 0x30, 0x82, 0x56,
+                0x78, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80,
+                0x80, 0x80,
+            ],
+        );
+    }
+
+    #[test]
+    fn compute_hash_long() {
+        let (mut nodes, mut values) = pmt_state!(Vec<u8>);
+
+        let node = pmt_node! { @(nodes, values)
+            extension { [0, 0], branch {
+                0 => leaf { vec![0x00, 0x00] => vec![0x12, 0x34, 0x56, 0x78, 0x9A] },
+                1 => leaf { vec![0x00, 0x10] => vec![0x34, 0x56, 0x78, 0x9A, 0xBC] },
+            } }
+        };
+
+        let node_hash_ref = node.compute_hash(&nodes, &values, 0);
+        assert_eq!(
+            node_hash_ref.as_ref(),
+            &[
+                0xFA, 0xBA, 0x42, 0x79, 0xB3, 0x9B, 0xCD, 0xEB, 0x7C, 0x53, 0x0F, 0xD7, 0x6E, 0x5A,
+                0xA3, 0x48, 0xD3, 0x30, 0x76, 0x26, 0x14, 0x84, 0x55, 0xA0, 0xAE, 0xFE, 0x0F, 0x52,
+                0x89, 0x5F, 0x36, 0x06,
+            ],
+        );
+    }
 }

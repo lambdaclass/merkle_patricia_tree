@@ -47,9 +47,9 @@ macro_rules! pmt_node {
         with_leaf { $key:expr => $value:expr }
     ) => {{
         let mut branch_node = $crate::nodes::BranchNode::<Vec<u8>, _, sha3::Keccak256>::new({
-            let mut choices = [None; 16];
+            let mut choices = [$crate::storage::NodeRef::default(); 16];
             $(
-                choices[$choice as usize] = Some($nodes.insert(
+                choices[$choice as usize] = $crate::storage::NodeRef::new($nodes.insert(
                     pmt_node! { @($nodes, $values)
                         $child_type { $( $child_tokens )* }
                     }.into()
@@ -57,7 +57,7 @@ macro_rules! pmt_node {
             )*
             choices
         });
-        branch_node.update_value_ref(Some($values.insert(($key, $value))));
+        branch_node.update_value_ref($crate::storage::ValueRef::new($values.insert(($key, $value))));
         branch_node
     }};
 
