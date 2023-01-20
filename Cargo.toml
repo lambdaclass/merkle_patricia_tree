@@ -17,15 +17,10 @@ slab = "0.4.7"
 smallvec = { version = "1.10.0", features = ["const_generics", "union"] }
 
 [dev-dependencies]
+cita_trie = "4.0.0"
 criterion = "0.4.0"
+hasher = "0.1.4"
 hex-literal = "0.3.4"
-memory-db = "0.31.0"
 proptest = "1.0.0"
 rand = "0.8.5"
-reference-trie = "0.26.0"
 sha3 = "0.10.6"
-trie-db = "0.24.0"
-
-# TODO: Migrate to testing with cita_trie and remove these dependencies.
-keccak-hasher = "0.15.3"
-trie-root = "0.17.0"

@@ -180,11 +180,11 @@ where
 
 #[cfg(test)]
 mod test {
+    use std::sync::Arc;
+
     use crate::*;
-    use keccak_hasher::KeccakHasher;
     use proptest::collection::{btree_set, vec};
     use proptest::prelude::*;
-    use reference_trie::ReferenceTrieStream;
     use sha3::Keccak256;
 
     // #[test]
@@ -411,7 +411,10 @@ mod test {
     }
 
     fn expect_hash(data: Vec<(Vec<u8>, Vec<u8>)>) {
-        assert_eq!(compute_hash_trie(data.clone()), compute_hash_ours(data));
+        assert_eq!(
+            compute_hash_cita_trie(data.clone()),
+            compute_hash_ours(data)
+        );
     }
 
     fn compute_hash_ours(data: Vec<(Vec<u8>, Vec<u8>)>) -> String {
@@ -425,10 +428,21 @@ mod test {
         format!("{hash:x}")
     }
 
-    fn compute_hash_trie(data: Vec<(Vec<u8>, Vec<u8>)>) -> String {
-        use trie_root::trie_root;
-        let hash =
-            trie_root::<KeccakHasher, ReferenceTrieStream, _, _, _>(data, Default::default());
-        hash.iter().map(|b| format!("{b:02x}")).collect()
+    fn compute_hash_cita_trie(data: Vec<(Vec<u8>, Vec<u8>)>) -> String {
+        use cita_trie::MemoryDB;
+        use cita_trie::{PatriciaTrie, Trie};
+        use hasher::HasherKeccak;
+
+        let memdb = Arc::new(MemoryDB::new(true));
+        let hasher = Arc::new(HasherKeccak::new());
+
+        let mut trie = PatriciaTrie::new(Arc::clone(&memdb), Arc::clone(&hasher));
+
+        for (key, value) in data {
+            trie.insert(key.to_vec(), value.to_vec()).unwrap();
+        }
+        let root = trie.root().unwrap();
+
+        root.iter().map(|b| format!("{b:02x}")).collect()
     }
 }

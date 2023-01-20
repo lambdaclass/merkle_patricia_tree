@@ -4,7 +4,4 @@
 #
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
-cc 72044483941df7c265fa4a9635fd6c235f7790f35d878277fea7955387e59fea # shrinks to paths = {[0], [200], [200, 0]}
-cc 4f3f0c44fdba16d943c33475dc4fa4431123ca274d17e3529dc7aa778de5655b # shrinks to paths = {[0], [1], [16], [25], [25, 0], [26]}
-cc 42f5cc71cd855cfb002f79cabde688aa80a84c56fe3d4e33c9de552b988c4425 # shrinks to paths = {[11], [11, 0], [12]}
-cc 6fd63c54c3dddb886f0b014aaa319e60b86163998244c6f7fed96db0b18b1b79 # shrinks to paths = {[0], [20, 27], [20, 27, 0], [20, 32]}
+cc e938b31467d640ced0053b28a634a4301caf85711660a4a0e14dfd83682564fb # shrinks to paths = {[0], [23], [23, 0], [24, 0]}

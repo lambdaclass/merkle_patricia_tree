@@ -4,10 +4,9 @@ use sha3::Keccak256;
 use std::time::Duration;
 
 mod common;
-mod parity;
 
 fn criterion_benchmark(c: &mut Criterion) {
-    c.benchmark_group("root_hash_keccak256")
+    c.benchmark_group("calculate root keccak256 hash with random key/values")
         .measurement_time(Duration::from_secs(10))
         .bench_function("100", bench_compute_hash::<100, Keccak256>())
         .bench_function("500", bench_compute_hash::<500, Keccak256>())
@@ -16,31 +15,17 @@ fn criterion_benchmark(c: &mut Criterion) {
         .bench_function("5k", bench_compute_hash::<5000, Keccak256>())
         .bench_function("10k", bench_compute_hash::<10000, Keccak256>());
 
-    c.benchmark_group("PatriciaMerkleTree<Vec<u8>, &[u8], Keccak256>::get()")
+    c.benchmark_group("get() from a tree made with random values")
         .bench_function("1k", bench_get::<1_000>())
         .bench_function("10k", bench_get::<10_000>())
         .bench_function("100k", bench_get::<100_000>())
         .bench_function("1M", bench_get::<1_000_000>());
 
-    c.benchmark_group("PatriciaMerkleTree<Vec<u8>, &[u8], Keccak256>::insert()")
+    c.benchmark_group("insert() from a tree made with random values")
         .bench_function("1k", bench_insert::<1_000>())
         .bench_function("10k", bench_insert::<10_000>())
         .bench_function("100k", bench_insert::<100_000>())
         .bench_function("1M", bench_insert::<1_000_000>());
-
-    type L = reference_trie::ExtensionLayout;
-    type S = reference_trie::ReferenceTrieStream;
-    c.benchmark_group("parity get()")
-        .bench_function("1k", parity::bench_get::<L, S, 1_000>())
-        .bench_function("10k", parity::bench_get::<L, S, 10_000>())
-        .bench_function("100k", parity::bench_get::<L, S, 100_000>())
-        .bench_function("1M", parity::bench_get::<L, S, 1_000_000>());
-
-    c.benchmark_group("parity insert()")
-        .bench_function("1k", parity::bench_insert::<L, S, 1_000>())
-        .bench_function("10k", parity::bench_insert::<L, S, 10_000>())
-        .bench_function("100k", parity::bench_insert::<L, S, 100_000>())
-        .bench_function("1M", parity::bench_insert::<L, S, 1_000_000>());
 }
 
 criterion_group!(benches, criterion_benchmark);
