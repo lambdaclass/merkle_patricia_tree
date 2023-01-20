@@ -424,18 +424,17 @@ mod test {
         Ok(())
     }
 
-    fn compute_hash_ours(data: Vec<(Vec<u8>, Vec<u8>)>) -> String {
+    fn compute_hash_ours(data: Vec<(Vec<u8>, Vec<u8>)>) -> Vec<u8> {
         let mut tree = PatriciaMerkleTree::<_, _, Keccak256>::new();
 
         for (key, val) in data {
             tree.insert(key, val);
         }
 
-        let hash = tree.compute_hash();
-        format!("{hash:x}")
+        tree.compute_hash().as_slice().to_vec()
     }
 
-    fn compute_hash_cita_trie(data: Vec<(Vec<u8>, Vec<u8>)>) -> String {
+    fn compute_hash_cita_trie(data: Vec<(Vec<u8>, Vec<u8>)>) -> Vec<u8> {
         use cita_trie::MemoryDB;
         use cita_trie::{PatriciaTrie, Trie};
         use hasher::HasherKeccak;
@@ -448,8 +447,7 @@ mod test {
         for (key, value) in data {
             trie.insert(key.to_vec(), value.to_vec()).unwrap();
         }
-        let root = trie.root().unwrap();
 
-        root.iter().map(|b| format!("{b:02x}")).collect()
+        trie.root().unwrap()
     }
 }

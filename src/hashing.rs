@@ -174,12 +174,7 @@ where
 
     pub fn write_bytes(&mut self, value: &[u8]) {
         if value.len() == 1 && value[0] < 128 {
-            // TODO: This isn't on the Ethereum wiki about RLP encoding...
-            if value[0] == 0 {
-                self.write_raw(&[0x80]);
-            } else {
-                self.write_raw(&[value[0]]);
-            }
+            self.write_raw(&[value[0]]);
         } else {
             self.write_len(0x80, 0xB7, value.len());
             self.write_raw(value);
