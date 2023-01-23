@@ -151,10 +151,10 @@ where
                 .get(*self.value_ref)
                 .expect("inconsistent internal tree structure");
 
-            let key_len = NodeHasher::<H>::path_len_slice(&{
+            let key_len = NodeHasher::<H>::path_len({
                 let mut key_slice = NibbleSlice::new(key.as_ref());
                 key_slice.offset_add(key_offset);
-                key_slice
+                key_slice.len()
             });
             let value_len = NodeHasher::<H>::bytes_len(
                 value.as_ref().len(),

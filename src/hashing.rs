@@ -106,14 +106,8 @@ where
         }
     }
 
-    pub fn path_len_vec(value: &NibbleVec) -> usize {
-        // TODO: Do not use iterators.
-        Self::bytes_len((value.len() >> 1) + 1, 0)
-    }
-
-    pub fn path_len_slice(value: &NibbleSlice) -> usize {
-        // TODO: Do not use iterators.
-        Self::bytes_len((value.len() >> 1) + 1, 0)
+    pub fn path_len(value_len: usize) -> usize {
+        Self::bytes_len((value_len >> 1) + 1, 0)
     }
 
     pub fn bytes_len(value_len: usize, first_value: u8) -> usize {

@@ -151,7 +151,7 @@ where
             let child_hash_ref =
                 child_node.compute_hash(nodes, values, key_offset + self.prefix.len());
 
-            let prefix_len = NodeHasher::<H>::path_len_vec(&self.prefix);
+            let prefix_len = NodeHasher::<H>::path_len(self.prefix.len());
             let child_len = match &child_hash_ref {
                 NodeHashRef::Inline(x) => x.len(),
                 NodeHashRef::Hashed(x) => NodeHasher::<H>::bytes_len(x.len(), x[0]),
