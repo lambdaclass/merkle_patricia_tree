@@ -78,6 +78,7 @@ Benchmarks are provided for the following use cases:
   - Overwriting nodes.
   - Removal of nodes.
   - Removal of non-existing nodes (no-op).
+  - Calculate the root Keccak256 hash.
 
 Every use case is tested with different tree sizes, ranging from 1k to 1M.
 
@@ -87,6 +88,10 @@ On a AMD Ryzen 9 5950x 3.4 Ghz with 128 Gb RAM using `Keccak256` as the hash fun
 |----------|------|-----------|-------------|----|
 | get() | `38.287 ns` | `58.692 ns` | `118.90 ns` | `266.56 ns` |
 | insert() | `327.44 ns` | `407.50 ns` | `778.76 ns` | `1.6858 µs` |
+
+| Bench | 100 | 500 | 1k | 2k | 5k | 10k |
+|----------|------|-----------|-------------|----|---|---|
+| root Keccak256 hash | `113.63 µs` | `557.49 µs` | `1.1775 ms` | `2.3716 ms` | `5.8113 ms` | `11.737 ms` |
 
 
 ## 🛠 Contributing
