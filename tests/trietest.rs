@@ -1,4 +1,8 @@
 //! Tests shamelessly copied from [here](https://github.com/ethereum/tests/blob/develop/TrieTests/trietest.json).
+//!
+//! Note: The commented lines within the tests are intentional. They correspond to the source's
+//!   paths whose last inserts are null values, which are treated as remove operations. We don't
+//!   implement removals, so we skipped inserting them to end up with the same root hash.
 
 use hex_literal::hex;
 use patricia_merkle_tree::PatriciaMerkleTree;
@@ -6,6 +10,8 @@ use sha3::Keccak256;
 
 #[test]
 fn empty_values() {
+    // Note: The commented lines are intentional (see the header note).
+
     let mut tree = PatriciaMerkleTree::<&str, &str, Keccak256>::new();
     tree.insert("do", "verb");
     // tree.insert("ether", "wookiedoo");
@@ -24,6 +30,8 @@ fn empty_values() {
 
 #[test]
 fn branching_tests() {
+    // Note: The commented lines are intentional (see the header note).
+
     let mut tree = PatriciaMerkleTree::<&[u8], &str, Keccak256>::new();
     // tree.insert(
     //     &hex!("04110d816c380812a427968ece99b1c963dfbce6"),
@@ -159,6 +167,8 @@ fn branching_tests() {
 
 #[test]
 fn jeff() {
+    // Note: The commented lines are intentional (see the header note).
+
     let mut tree = PatriciaMerkleTree::<&[u8], &[u8], Keccak256>::new();
     tree.insert(
         &hex!("0000000000000000000000000000000000000000000000000000000000000045"),
