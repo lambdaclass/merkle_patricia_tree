@@ -183,19 +183,38 @@ mod test {
     use std::sync::Arc;
 
     use crate::*;
+    use hex_literal::hex;
     use proptest::collection::{btree_set, vec};
     use proptest::prelude::*;
     use sha3::Keccak256;
 
-    // #[test]
-    // fn compute_hash() {
-    //     todo!()
-    // }
+    #[test]
+    fn compute_hash() {
+        let mut tree = PatriciaMerkleTree::<&[u8], &[u8], Keccak256>::new();
 
-    // #[test]
-    // fn compute_hash_long() {
-    //     todo!()
-    // }
+        tree.insert(b"first", b"value");
+        tree.insert(b"second", b"value");
+
+        assert_eq!(
+            tree.compute_hash().as_slice(),
+            hex!("f7537e7f4b313c426440b7fface6bff76f51b3eb0d127356efbe6f2b3c891501"),
+        );
+    }
+
+    #[test]
+    fn compute_hash_long() {
+        let mut tree = PatriciaMerkleTree::<&[u8], &[u8], Keccak256>::new();
+
+        tree.insert(b"first", b"value");
+        tree.insert(b"second", b"value");
+        tree.insert(b"third", b"value");
+        tree.insert(b"fourth", b"value");
+
+        assert_eq!(
+            tree.compute_hash().as_slice(),
+            hex!("e2ff76eca34a96b68e6871c74f2a5d9db58e59f82073276866fdd25e560cedea"),
+        );
+    }
 
     #[test]
     fn get_inserted() {
