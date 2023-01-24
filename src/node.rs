@@ -2,7 +2,7 @@ use crate::{
     hashing::NodeHashRef,
     nibble::NibbleSlice,
     nodes::{BranchNode, ExtensionNode, LeafNode},
-    NodeRef, NodesStorage, ValueRef, ValuesStorage,
+    Encode, NodeRef, NodesStorage, ValueRef, ValuesStorage,
 };
 use digest::Digest;
 
@@ -15,8 +15,8 @@ use digest::Digest;
 #[derive(Clone, Debug)]
 pub enum Node<P, V, H>
 where
-    P: AsRef<[u8]>,
-    V: AsRef<[u8]>,
+    P: Encode,
+    V: Encode,
     H: Digest,
 {
     Branch(BranchNode<P, V, H>),
@@ -26,8 +26,8 @@ where
 
 impl<P, V, H> Node<P, V, H>
 where
-    P: AsRef<[u8]>,
-    V: AsRef<[u8]>,
+    P: Encode,
+    V: Encode,
     H: Digest,
 {
     pub fn get<'a>(
@@ -74,8 +74,8 @@ where
 
 impl<P, V, H> From<BranchNode<P, V, H>> for Node<P, V, H>
 where
-    P: AsRef<[u8]>,
-    V: AsRef<[u8]>,
+    P: Encode,
+    V: Encode,
     H: Digest,
 {
     fn from(value: BranchNode<P, V, H>) -> Self {
@@ -85,8 +85,8 @@ where
 
 impl<P, V, H> From<ExtensionNode<P, V, H>> for Node<P, V, H>
 where
-    P: AsRef<[u8]>,
-    V: AsRef<[u8]>,
+    P: Encode,
+    V: Encode,
     H: Digest,
 {
     fn from(value: ExtensionNode<P, V, H>) -> Self {
@@ -96,8 +96,8 @@ where
 
 impl<P, V, H> From<LeafNode<P, V, H>> for Node<P, V, H>
 where
-    P: AsRef<[u8]>,
-    V: AsRef<[u8]>,
+    P: Encode,
+    V: Encode,
     H: Digest,
 {
     fn from(value: LeafNode<P, V, H>) -> Self {

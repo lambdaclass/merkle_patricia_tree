@@ -4,7 +4,7 @@ use crate::{
     nibble::{NibbleSlice, NibbleVec},
     node::{InsertAction, Node},
     nodes::LeafNode,
-    NodeRef, NodesStorage, ValuesStorage,
+    Encode, NodeRef, NodesStorage, ValuesStorage,
 };
 use digest::Digest;
 use std::marker::PhantomData;
@@ -12,8 +12,8 @@ use std::marker::PhantomData;
 #[derive(Clone, Debug)]
 pub struct ExtensionNode<P, V, H>
 where
-    P: AsRef<[u8]>,
-    V: AsRef<[u8]>,
+    P: Encode,
+    V: Encode,
     H: Digest,
 {
     pub(crate) prefix: NibbleVec,
@@ -27,8 +27,8 @@ where
 
 impl<P, V, H> ExtensionNode<P, V, H>
 where
-    P: AsRef<[u8]>,
-    V: AsRef<[u8]>,
+    P: Encode,
+    V: Encode,
     H: Digest,
 {
     pub(crate) fn new(prefix: NibbleVec, child_ref: NodeRef) -> Self {
