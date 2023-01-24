@@ -19,8 +19,7 @@ bench:
 	cargo bench
 
 ext-bench:
-	cd ./external-benches/geth/
-	go test -bench=.
+	cd ./external-benches/geth/; go test -bench=.
 
 coverage:
 	cargo tarpaulin
