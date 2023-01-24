@@ -7,6 +7,10 @@ edition = "2021"
 name = "bench"
 harness = false
 
+[profile.release-with-debug]
+inherits = "release"
+debug = true
+
 [features]
 tree-dump = []
 
