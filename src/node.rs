@@ -60,14 +60,14 @@ where
         &self,
         nodes: &NodesStorage<P, V, H>,
         values: &ValuesStorage<P, V>,
-        key_offset: usize,
+        path_offset: usize,
     ) -> NodeHashRef<H> {
         match self {
-            Node::Branch(branch_node) => branch_node.compute_hash(nodes, values, key_offset),
+            Node::Branch(branch_node) => branch_node.compute_hash(nodes, values, path_offset),
             Node::Extension(extension_node) => {
-                extension_node.compute_hash(nodes, values, key_offset)
+                extension_node.compute_hash(nodes, values, path_offset)
             }
-            Node::Leaf(leaf_node) => leaf_node.compute_hash(nodes, values, key_offset),
+            Node::Leaf(leaf_node) => leaf_node.compute_hash(nodes, values, path_offset),
         }
     }
 }

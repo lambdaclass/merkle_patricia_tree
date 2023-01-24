@@ -41,7 +41,7 @@ Its structure is implemented to match Ethereum's [Patricia Merkle Trees](https:/
 
 ## 🚀 Usage
 
-Here's an example to calculate the hash after inserting some key values.
+Here's an example to calculate the hash after inserting a few items.
 
 ```rust
 use merkle_patricia_tree::PatriciaMerkleTree;
@@ -53,7 +53,7 @@ tree.insert(b"dog", b"puppy");
 tree.insert(b"dogglesworth", b"cat");
 
 let hash = tree.compute_hash().unwrap();
-println!("{:x}", hash)
+println!("{hash:02x}");
 ```
 
 ### Testing
@@ -96,7 +96,7 @@ On a AMD Ryzen 9 5950x 3.4 Ghz with 128 Gb RAM using `Keccak256` as the hash fun
 
 ## 🛠 Contributing
 
-The open source community is a fantastic place for learning, inspiration, and creation, and this is all thanks to contributions from people like you. Your contributions are **greatly appreciated**. 
+The open source community is a fantastic place for learning, inspiration, and creation, and this is all thanks to contributions from people like you. Your contributions are **greatly appreciated**.
 
 If you have any suggestions for how to improve the project, please feel free to fork the repo and create a pull request, or [open an issue](https://github.com/lambdaclass/merkle_patricia_tree/issues/new?labels=enhancement&title=feat%3A+) with the tag 'enhancement'.
 
@@ -115,13 +115,13 @@ PATRICIA is an acronym which means:
 
 Practical Algorithm to Retrieve Information Coded in Alphanumeric
 
-> A compact representation of a trie in which any node that is an only child is merged with its parent. 
+> A compact representation of a trie in which any node that is an only child is merged with its parent.
 
 > Patricia tries are seen as radix trees with radix equals 2, which means that each bit of the key is compared individually and each node is a two-way (i.e., left versus right) branch
 
-In essence, a patricia tree stores a value for the given key (also named **path**).
+In essence, a patricia tree stores a value for the given path.
 
-The key or path is converted to bytes, and then each nibble of each byte is used to traverse the tree.
+The path is encoded into bytes, and then each nibble of each byte is used to traverse the tree.
 
 It is composed of 3 different types of nodes:
 
@@ -140,13 +140,13 @@ It contains 2 elements:
 #### The extension node
 
 It contains 2 elements:
-- The encoded path.
-- A key or path for the next lookup.
+- The prefix as a segment of the path.
+- A reference to the child node (which must be a branch).
 
 This node allows the tree to be more compact, imagine we have a path that ultimately can only go 1 way, because it has no diverging paths,
 adding X nodes instead of 1 representing that would be a waste of space, this fixes that.
 
-For example, imagine we have the keys "abcdx" and "abcdy", instead of adding 10 nodes (1 for each nibble in each character), we create a single node representing the path "abcd", thus compressing the tree.
+For example, imagine we have the paths "abcdx" and "abcdy", instead of adding 10 nodes (1 for each nibble in each character), we create a single node representing the path "abcd", thus compressing the tree.
 
 
 #### Solving the ambiguity

@@ -6,7 +6,7 @@ use std::time::Duration;
 mod common;
 
 fn criterion_benchmark(c: &mut Criterion) {
-    c.benchmark_group("calculate root keccak256 hash with random key/values")
+    c.benchmark_group("calculate root keccak256 hash with random items")
         .measurement_time(Duration::from_secs(10))
         .bench_function("100", bench_compute_hash::<100, Keccak256>())
         .bench_function("500", bench_compute_hash::<500, Keccak256>())

@@ -126,7 +126,7 @@ where
         &self,
         nodes: &NodesStorage<P, V, H>,
         values: &ValuesStorage<P, V>,
-        key_offset: usize,
+        path_offset: usize,
     ) -> NodeHashRef<H> {
         self.hash.extract_ref().unwrap_or_else(|| {
             let mut children_len: usize = self
@@ -141,7 +141,7 @@ where
                                 .expect("inconsistent internal tree structure");
 
                             let child_hash_ref =
-                                child_node.compute_hash(nodes, values, key_offset + 1);
+                                child_node.compute_hash(nodes, values, path_offset + 1);
                             match child_hash_ref {
                                 NodeHashRef::Inline(x) => x.len(),
                                 NodeHashRef::Hashed(x) => NodeHasher::<H>::bytes_len(x.len(), x[0]),
@@ -176,7 +176,7 @@ where
                         .get(**choice)
                         .expect("inconsistent internal tree structure");
 
-                    let child_hash_ref = child_node.compute_hash(nodes, values, key_offset + 1);
+                    let child_hash_ref = child_node.compute_hash(nodes, values, path_offset + 1);
                     match child_hash_ref {
                         NodeHashRef::Inline(x) => hasher.write_raw(&x),
                         NodeHashRef::Hashed(x) => hasher.write_bytes(&x),

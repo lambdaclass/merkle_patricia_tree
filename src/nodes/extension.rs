@@ -141,7 +141,7 @@ where
         &self,
         nodes: &NodesStorage<P, V, H>,
         values: &ValuesStorage<P, V>,
-        key_offset: usize,
+        path_offset: usize,
     ) -> NodeHashRef<H> {
         self.hash.extract_ref().unwrap_or_else(|| {
             let child_node = nodes
@@ -149,7 +149,7 @@ where
                 .expect("inconsistent internal tree structure");
 
             let child_hash_ref =
-                child_node.compute_hash(nodes, values, key_offset + self.prefix.len());
+                child_node.compute_hash(nodes, values, path_offset + self.prefix.len());
 
             let prefix_len = NodeHasher::<H>::path_len(self.prefix.len());
             let child_len = match &child_hash_ref {

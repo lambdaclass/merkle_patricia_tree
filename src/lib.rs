@@ -454,8 +454,8 @@ mod test {
     fn compute_hash_ours(data: Vec<(Vec<u8>, Vec<u8>)>) -> Vec<u8> {
         let mut tree = PatriciaMerkleTree::<_, _, Keccak256>::new();
 
-        for (key, val) in data {
-            tree.insert(key, val);
+        for (path, val) in data {
+            tree.insert(path, val);
         }
 
         tree.compute_hash().as_slice().to_vec()
@@ -471,8 +471,8 @@ mod test {
 
         let mut trie = PatriciaTrie::new(Arc::clone(&memdb), Arc::clone(&hasher));
 
-        for (key, value) in data {
-            trie.insert(key.to_vec(), value.to_vec()).unwrap();
+        for (path, value) in data {
+            trie.insert(path.to_vec(), value.to_vec()).unwrap();
         }
 
         trie.root().unwrap()
