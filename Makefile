@@ -1,4 +1,4 @@
-.PHONY: deps build check clippy test bench coverage
+.PHONY: deps build check clippy test bench ext-bench coverage
 
 build:
 	cargo build --release
@@ -17,6 +17,10 @@ test:
 
 bench:
 	cargo bench
+
+ext-bench:
+	cd ./external-benches/geth/
+	go test -bench=.
 
 coverage:
 	cargo tarpaulin
