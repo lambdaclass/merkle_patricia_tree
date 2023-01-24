@@ -18,5 +18,8 @@ test:
 bench:
 	cargo bench
 
+profile:
+	 cargo build --examples --profile=release-with-debug && valgrind --tool=dhat ./target/release-with-debug/examples/calculate-root
+
 coverage:
 	cargo tarpaulin
