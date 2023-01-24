@@ -92,7 +92,8 @@ macro_rules! pmt_node {
 macro_rules! pmt_path {
     ( $path:literal ) => {{
         assert!($path.len() % 2 == 1);
-        $path.as_bytes()
+        $path
+            .as_bytes()
             .chunks(2)
             .map(|bytes| u8::from_str_radix(std::str::from_utf8(bytes).unwrap(), 16).unwrap())
             .collect::<Vec<u8>>()
