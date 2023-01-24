@@ -93,6 +93,13 @@ On a AMD Ryzen 9 5950x 3.4 Ghz with 128 Gb RAM using `Keccak256` as the hash fun
 |----------|------|-----------|-------------|----|---|---|
 | root Keccak256 hash | `113.63 µs` | `557.49 µs` | `1.1775 ms` | `2.3716 ms` | `5.8113 ms` | `11.737 ms` |
 
+## Profiling
+
+Having valgrind installed, you can profile some example programs using the following command:
+
+```
+make profile
+```
 
 ## 🛠 Contributing
 
