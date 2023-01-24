@@ -27,3 +27,15 @@ impl Encode for String {
         Cow::Borrowed(self.as_bytes())
     }
 }
+
+impl<'a, const N: usize> Encode for &'a [u8; N] {
+    fn encode(&self) -> Cow<'a, [u8]> {
+        Cow::Borrowed(self.as_slice())
+    }
+}
+
+impl<const N: usize> Encode for [u8; N] {
+    fn encode(&self) -> Cow<[u8]> {
+        Cow::Borrowed(self.as_slice())
+    }
+}
