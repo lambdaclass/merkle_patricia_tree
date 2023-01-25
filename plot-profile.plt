@@ -10,5 +10,5 @@ set format y '%.0s%cB'
 set output "profile.svg"
 plot "data.dat" using 1:2 title 'Total' with linespoints, \
     "data.dat" using 1:3 title 'At t-gmax' with linespoints, \
-    "data.dat" using 1:4 title 'Reads' with linespoints, \
-    "data.dat" using 1:5 title 'Writes' with linespoints
+    "data.dat" using 1:5 title 'Reads' with linespoints, \
+    "data.dat" using 1:6 title 'Writes' with linespoints
