@@ -32,7 +32,7 @@ profile:
 		gnuplot plot-profile.plt
 
 clean-profile:
-	rm -f data.dat dhat.out.* profile.svg
+	rm -f data.dat dhat.out.* profile*.svg
 
 coverage:
 	cargo tarpaulin

@@ -12,3 +12,10 @@ plot "data.dat" using 1:2 title 'Total' with linespoints, \
     "data.dat" using 1:3 title 'At t-gmax' with linespoints, \
     "data.dat" using 1:5 title 'Reads' with linespoints, \
     "data.dat" using 1:6 title 'Writes' with linespoints
+
+set logscale xy
+set output "profile-logscale.svg"
+plot "data.dat" using 1:2 title 'Total' with linespoints, \
+    "data.dat" using 1:3 title 'At t-gmax' with linespoints, \
+    "data.dat" using 1:5 title 'Reads' with linespoints, \
+    "data.dat" using 1:6 title 'Writes' with linespoints
