@@ -1,5 +1,5 @@
 set autoscale                        # scale axes automatically
-
+set key left top
 set xtic auto                          # set xtics automatically
 set ytic auto                          # set ytics automatically
 set title "Patricia Merkle Tree Root Hash Memory Usage"
