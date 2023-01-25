@@ -20,6 +20,7 @@ mod nibble;
 mod node;
 mod nodes;
 mod storage;
+mod util;
 
 /// Patricia Merkle Tree implementation.
 #[derive(Clone, Debug, Default)]
@@ -153,6 +154,19 @@ where
 
             &self.hash.1
         }
+    }
+
+    /// Compute the root hash of a tree given a sorted iterator to its items.
+    ///
+    /// Panics if the iterator is not sorted.
+    pub fn compute_hash_from_sorted_iter<'a>(
+        iter: impl IntoIterator<Item = (&'a P, &'a V)>,
+    ) -> Output<H>
+    where
+        P: 'a,
+        V: 'a,
+    {
+        util::compute_hash_from_sorted_iter::<P, V, H>(iter)
     }
 
     /// Calculate approximated memory usage (both used and allocated).
