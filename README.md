@@ -95,7 +95,9 @@ On a AMD Ryzen 9 5950x 3.4 Ghz with 128 Gb RAM using `Keccak256` as the hash fun
 
 ## Profiling
 
-Having valgrind installed, you can profile some example programs using the following command:
+Dependencies: valgrind, gnuplot, make
+
+You can profile some example programs and generate plots using the following command:
 
 ```
 make profile
