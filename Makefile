@@ -18,8 +18,15 @@ test:
 bench:
 	cargo bench
 
+# External benches dependencies: go, dotnet-sdk
 ext-bench:
 	cd ./external-benches/geth/; GOMAXPROCS=1 go test -bench=.
+	cd ./external-benches/paprika-bench/; dotnet run --configuration Release
+	
+
+ext-bench-prepare:
+	cd ./external-benches/paprika-bench/
+	dotnet nuget add source -n merkle_patricia_tree $(pwd)/nuget-feed
 
 coverage:
 	cargo tarpaulin
