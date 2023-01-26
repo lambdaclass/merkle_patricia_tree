@@ -22,7 +22,6 @@ bench:
 ext-bench:
 	cd ./external-benches/geth/; GOMAXPROCS=1 go test -bench=.
 	cd ./external-benches/paprika-bench/; dotnet run --configuration Release
-	
 
 ext-bench-prepare:
 	cd ./external-benches/paprika-bench/
