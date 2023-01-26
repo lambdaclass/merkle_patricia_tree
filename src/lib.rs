@@ -156,6 +156,18 @@ where
         }
     }
 
+    /// Generate a tree from a sorted items iterator.
+    ///
+    /// Panics if the iterator is not sorted.
+    pub fn from_sorted_iter(iter: impl IntoIterator<Item = (P, V)>) -> Self {
+        let mut tree = Self::new();
+        for (path, value) in iter {
+            tree.insert(path, value);
+        }
+
+        tree
+    }
+
     /// Compute the root hash of a tree given a sorted iterator to its items.
     ///
     /// Panics if the iterator is not sorted.
@@ -163,8 +175,8 @@ where
         iter: impl IntoIterator<Item = (&'a P, &'a V)>,
     ) -> Output<H>
     where
-        P: 'a,
-        V: 'a,
+        P: 'a + Clone,
+        V: 'a + Clone,
     {
         util::compute_hash_from_sorted_iter::<P, V, H>(iter)
     }
