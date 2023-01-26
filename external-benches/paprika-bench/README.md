@@ -1,9 +1,8 @@
 
 
+# Build
 ```
-
-dotnet nuget add source nuget-feed/
+dotnet nuget add source -n merkle_patricia_tree $(pwd)/nuget-feed
 dotnet restore
-
-dotnet add package Paprika -s nuget-feed 
+dotnet build
 ```
