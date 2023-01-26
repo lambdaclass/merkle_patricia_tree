@@ -2,8 +2,10 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Running;
 using Tree;
+using BenchmarkDotNet.Engines;
 
 var summary = BenchmarkRunner.Run<Bench>();
+var summary2 = BenchmarkRunner.Run<BenchInsert>();
 
 public class Bench
 {
@@ -46,6 +48,7 @@ public class Bench
     }
 }
 
+[SimpleJob(RunStrategy.Monitoring, launchCount: 3, warmupCount: 0, iterationCount: 1000)]
 public class BenchInsert
 {
     private MemoryDb db;
@@ -76,6 +79,7 @@ public class BenchInsert
             var key = new byte[32];
             rnd.NextBytes(key);
             keys.Add(key);
+            tree.Set(key, key);
         }
 
         while (newKeys.Count < 1000)
@@ -89,23 +93,10 @@ public class BenchInsert
         }
     }
 
-    [IterationSetup]
-    public void IterSetup()
-    {
-        db = new MemoryDb(1024 * 1024 * 1024);
-        tree = new PaprikaTree(db);
-        foreach (var key in keys)
-        {
-            tree.Set(key, key);
-        }
-    }
-
     [Benchmark]
     public void Insert()
     {
-        foreach (var key in newKeys)
-        {
-            tree.Set(key, key);
-        }
+        var key = newKeys[index++];
+        tree.Set(key, key);
     }
 }
