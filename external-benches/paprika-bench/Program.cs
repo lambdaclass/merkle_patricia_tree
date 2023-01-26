@@ -1,5 +1,4 @@
-﻿using Paprika.Db;
-using BenchmarkDotNet.Attributes;
+﻿using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Running;
 using Tree;
 using BenchmarkDotNet.Engines;
