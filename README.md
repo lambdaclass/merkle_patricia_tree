@@ -70,6 +70,12 @@ make test
 make bench
 ```
 
+To run external benches:
+
+```
+make ext-bench
+```
+
 Benchmarks are provided for the following use cases:
 
   - Retrieval of non-existant nodes.
@@ -87,7 +93,14 @@ On a AMD Ryzen 9 5950x 3.4 Ghz with 128 Gb RAM using `Keccak256` as the hash fun
 | Bench | 1k | 10k | 100k | 1M |
 |----------|------|-----------|-------------|----|
 | get() | `38.287 ns` | `58.692 ns` | `118.90 ns` | `266.56 ns` |
+| geth get() | `110.7 ns` | `139.6 ns` | `247.6 ns` | `484.5 ns` |
 | insert() | `327.44 ns` | `407.50 ns` | `778.76 ns` | `1.6858 µs` |
+| geth insert() | `536.3 ns` | `820.3 ns` | `1.624 µs` | `2.649 µs` |
+
+| Bench | 100 | 500 | 1k | 2k | 5k | 10k |
+|----------|------|-----------|-------------|----|---|---|
+| root Keccak256 | `113.63 µs` | `557.49 µs` | `1.1775 ms` | `2.3716 ms` | `5.8113 ms` | `11.737 ms` |
+| geth root Keccak256 | `102.358 µs` | `504.081 µs` | `989.531 µs` | `1.936 ms` | `5.59 ms` | `11.458 ms` |
 
 | Bench | 100 | 500 | 1k | 2k | 5k | 10k |
 |----------|------|-----------|-------------|----|---|---|

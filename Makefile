@@ -1,4 +1,4 @@
-.PHONY: deps build check clippy test bench coverage
+.PHONY: deps build check clippy test bench ext-bench coverage
 
 build:
 	cargo build --release
@@ -17,6 +17,9 @@ test:
 
 bench:
 	cargo bench
+
+ext-bench:
+	cd ./external-benches/geth/; GOMAXPROCS=1 go test -bench=.
 
 profile:
 	 cargo build --examples --profile=release-with-debug && \
