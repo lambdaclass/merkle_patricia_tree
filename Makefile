@@ -20,8 +20,10 @@ bench:
 
 # External benches dependencies: go, dotnet-sdk
 ext-bench:
+	echo "Benchmarking go-ethereum implementation:"
 	cd ./external-benches/geth/; GOMAXPROCS=1 go test -bench=.
-	cd ./external-benches/paprika-bench/; dotnet run --configuration Release
+	echo "Benchmarking Paprika implementation (CSharp)"
+	cd ./external-benches/paprika-bench/; dotnet run -c Release
 
 ext-bench-prepare:
 	cd ./external-benches/paprika-bench/

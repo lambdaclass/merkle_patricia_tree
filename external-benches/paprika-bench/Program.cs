@@ -1,22 +1,48 @@
 ﻿using Paprika.Db;
+using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Running;
+using Tree;
 
+var summary = BenchmarkRunner.Run<Bench>();
 
-Console.WriteLine("Hello, World!");
-
-using var db = new NativeMemoryPagedDb(1024 * 1024UL);
-var tx = db.Begin();
-
-var key = new byte[32];
-
-for (byte i = 0; i < byte.MaxValue; i++)
+public class Bench
 {
-    key[0] = 0x12;
-    key[1] = 0x34;
-    key[2] = 0x56;
-    key[3] = 0x78;
-    key[31] = i;
+    private MemoryDb db;
+    private PaprikaTree tree;
+    private List<byte[]> keys;
+    private int index = 0;
 
-    tx.Set(key, key);
+    [Params(1000, 10_000, 100_000, 1_000_000)]
+    public int N;
+
+    public Bench()
+    {
+        db = new MemoryDb(1024 * 1024 * 1024);
+        tree = new PaprikaTree(db);
+        keys = new List<byte[]>(N);
+    }
+
+    [GlobalSetup]
+    public void Setup()
+    {
+        index = 0;
+        Random rnd = new Random();
+        for (int i = 0; i < N; i++)
+        {
+            var key = new byte[32];
+            rnd.NextBytes(key);
+            tree.Set(key, key);
+            keys.Add(key);
+        }
+        Console.Out.WriteLine($"Keys len: {keys.Count}");
+    }
+
+    [Benchmark]
+    public void Get()
+    {
+        var key = keys[index];
+        index += 1;
+        index = index % keys.Count;
+        tree.TryGet(key, out var value);
+    }
 }
-
-Console.WriteLine($"Used memory {db.TotalUsedPages:P}");
