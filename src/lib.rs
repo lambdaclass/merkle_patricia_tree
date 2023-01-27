@@ -183,8 +183,8 @@ where
         iter: impl IntoIterator<Item = (&'a P, &'a V)>,
     ) -> Output<H>
     where
-        P: 'a + Clone,
-        V: 'a + Clone,
+        P: 'a,
+        V: 'a,
     {
         util::compute_hash_from_sorted_iter::<P, V, H>(iter)
     }

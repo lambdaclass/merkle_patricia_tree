@@ -1,11 +1,11 @@
 use super::LeafNode;
 use crate::{
-    hashing::{NodeHash, NodeHashRef, NodeHasher},
+    hashing::{NodeHash, NodeHashRef, NodeHasher, DelimitedHash},
     nibble::NibbleSlice,
     node::{InsertAction, Node},
     Encode, NodeRef, NodesStorage, ValueRef, ValuesStorage,
 };
-use digest::Digest;
+use digest::{Digest, Output};
 use std::marker::PhantomData;
 
 #[derive(Clone, Debug)]
@@ -129,72 +129,150 @@ where
         path_offset: usize,
     ) -> NodeHashRef<H> {
         self.hash.extract_ref().unwrap_or_else(|| {
-            let mut children_len: usize = self
-                .choices
-                .iter()
-                .map(|choice| {
-                    choice
-                        .is_valid()
-                        .then(|| {
-                            let child_node = nodes
-                                .get(**choice)
-                                .expect("inconsistent internal tree structure");
+            let children = self.choices.map(|node_ref| {
+                if node_ref.is_valid() {
+                    let child_node = nodes
+                        .get(*node_ref)
+                        .expect("inconsistent internal tree structure");
 
-                            let child_hash_ref =
-                                child_node.compute_hash(nodes, values, path_offset + 1);
-                            match child_hash_ref {
-                                NodeHashRef::Inline(x) => x.len(),
-                                NodeHashRef::Hashed(x) => NodeHasher::<H>::bytes_len(x.len(), x[0]),
-                            }
-                        })
-                        .unwrap_or(1)
-                })
-                .sum();
+                    let mut target = Output::<H>::default();
+                    let target_len = match child_node.compute_hash(nodes, values, path_offset + 1) {
+                        NodeHashRef::Inline(x) => {
+                            target[..x.len()].copy_from_slice(&x);
+                            x.len()
+                        }
+                        NodeHashRef::Hashed(x) => {
+                            target.copy_from_slice(&x);
+                            x.len()
+                        }
+                    };
+
+                    DelimitedHash(target, target_len)
+                } else {
+                    DelimitedHash(Output::<H>::default(), 0)
+                }
+            });
 
             let encoded_value = if self.value_ref.is_valid() {
                 let (_, value) = values
                     .get(*self.value_ref)
                     .expect("inconsistent internal tree structure");
-                let encoded_value = value.encode();
 
-                children_len += NodeHasher::<H>::bytes_len(
-                    encoded_value.len(),
-                    encoded_value.first().copied().unwrap_or_default(),
-                );
-                Some(encoded_value)
+                Some(value.encode())
             } else {
-                children_len += 1;
                 None
             };
 
-            let mut hasher = NodeHasher::new(&self.hash);
-            hasher.write_list_header(children_len);
+            compute_branch_hash::<DelimitedHash<H>, _>(
+                &self.hash,
+                &children,
+                encoded_value.as_deref(),
+            )
 
-            self.choices.iter().for_each(|choice| {
-                if choice.is_valid() {
-                    let child_node = nodes
-                        .get(**choice)
-                        .expect("inconsistent internal tree structure");
+            // let mut children_len: usize = self
+            //     .choices
+            //     .iter()
+            //     .map(|choice| {
+            //         choice
+            //             .is_valid()
+            //             .then(|| {
+            //                 let child_node = nodes
+            //                     .get(**choice)
+            //                     .expect("inconsistent internal tree structure");
 
-                    let child_hash_ref = child_node.compute_hash(nodes, values, path_offset + 1);
-                    match child_hash_ref {
-                        NodeHashRef::Inline(x) => hasher.write_raw(&x),
-                        NodeHashRef::Hashed(x) => hasher.write_bytes(&x),
-                    }
-                } else {
-                    hasher.write_bytes(&[]);
-                }
-            });
+            //                 let child_hash_ref =
+            //                     child_node.compute_hash(nodes, values, path_offset + 1);
+            //                 match child_hash_ref {
+            //                     NodeHashRef::Inline(x) => x.len(),
+            //                     NodeHashRef::Hashed(x) => NodeHasher::<H>::bytes_len(x.len(), x[0]),
+            //                 }
+            //             })
+            //             .unwrap_or(1)
+            //     })
+            //     .sum();
 
-            if let Some(encoded_value) = encoded_value {
-                hasher.write_bytes(encoded_value.as_ref());
-            } else {
-                hasher.write_bytes(&[]);
-            }
+            // let encoded_value = if self.value_ref.is_valid() {
+            //     let (_, value) = values
+            //         .get(*self.value_ref)
+            //         .expect("inconsistent internal tree structure");
+            //     let encoded_value = value.encode();
 
-            hasher.finalize()
+            //     children_len += NodeHasher::<H>::bytes_len(
+            //         encoded_value.len(),
+            //         encoded_value.first().copied().unwrap_or_default(),
+            //     );
+            //     Some(encoded_value)
+            // } else {
+            //     children_len += 1;
+            //     None
+            // };
+
+            // let mut hasher = NodeHasher::new(&self.hash);
+            // hasher.write_list_header(children_len);
+
+            // self.choices.iter().for_each(|choice| {
+            //     if choice.is_valid() {
+            //         let child_node = nodes
+            //             .get(**choice)
+            //             .expect("inconsistent internal tree structure");
+
+            //         let child_hash_ref = child_node.compute_hash(nodes, values, path_offset + 1);
+            //         match child_hash_ref {
+            //             NodeHashRef::Inline(x) => hasher.write_raw(&x),
+            //             NodeHashRef::Hashed(x) => hasher.write_bytes(&x),
+            //         }
+            //     } else {
+            //         hasher.write_bytes(&[]);
+            //     }
+            // });
+
+            // if let Some(encoded_value) = encoded_value {
+            //     hasher.write_bytes(encoded_value.as_ref());
+            // } else {
+            //     hasher.write_bytes(&[]);
+            // }
+
+            // hasher.finalize()
         })
     }
+}
+
+pub fn compute_branch_hash<'a, T, H>(
+    hash: &'a NodeHash<H>,
+    choices: &[T; 16],
+    value: Option<&[u8]>,
+) -> NodeHashRef<'a, H>
+where
+    T: AsRef<[u8]>,
+    H: Digest,
+{
+    let mut children_len: usize = choices
+        .iter()
+        .map(|x| match x.as_ref().len() {
+            0 => 1,
+            32 => NodeHasher::<H>::bytes_len(32, x.as_ref()[0]),
+            x => x,
+        })
+        .sum();
+
+    if let Some(value) = value {
+        NodeHasher::<H>::bytes_len(value.len(), value.first().copied().unwrap_or_default());
+    } else {
+        children_len += 1;
+    }
+
+    let mut hasher = NodeHasher::new(hash);
+    hasher.write_list_header(children_len);
+    choices.iter().for_each(|x| match x.as_ref().len() {
+        0 => hasher.write_bytes(&[]),
+        32 => hasher.write_bytes(x.as_ref()),
+        _ => hasher.write_raw(x.as_ref()),
+    });
+    match value {
+        Some(value) => hasher.write_bytes(value),
+        None => hasher.write_bytes(&[]),
+    }
+    hasher.finalize()
 }
 
 #[cfg(test)]

@@ -6,6 +6,39 @@ use std::{
     mem::size_of,
 };
 
+#[derive(Debug)]
+pub struct DelimitedHash<H>(pub Output<H>, pub usize)
+where
+    H: Digest;
+
+impl<H> AsRef<[u8]> for DelimitedHash<H>
+where
+    H: Digest,
+{
+    fn as_ref(&self) -> &[u8] {
+        &self.0[..self.1]
+    }
+}
+
+impl<H> Default for DelimitedHash<H>
+where
+    H: Digest,
+{
+    fn default() -> Self {
+        Self(Default::default(), 0)
+    }
+}
+
+impl<H> From<NodeHash<H>> for DelimitedHash<H>
+where
+    H: Digest,
+{
+    fn from(value: NodeHash<H>) -> Self {
+        let (data, len) = value.into_inner();
+        Self(data, len)
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NodeHash<H>
 where
@@ -32,6 +65,11 @@ where
             32 => Some(NodeHashRef::Hashed(hash_ref)),
             l => Some(NodeHashRef::Inline(Ref::map(hash_ref, |x| &x[..l]))),
         }
+    }
+
+    #[warn(warnings)]
+    pub fn into_inner(self) -> (Output<H>, usize) {
+        (self.hash_ref.into_inner(), self.length.into_inner())
     }
 }
 
