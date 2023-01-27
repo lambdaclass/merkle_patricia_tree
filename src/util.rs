@@ -1,12 +1,12 @@
-use crate::PatriciaMerkleTree;
+use crate::{Encode, PatriciaMerkleTree};
 use digest::{Digest, Output};
 
 pub fn compute_hash_from_sorted_iter<'a, P, V, H>(
     iter: impl IntoIterator<Item = (&'a P, &'a V)>,
 ) -> Output<H>
 where
-    P: 'a + AsRef<[u8]> + Clone,
-    V: 'a + AsRef<[u8]> + Clone,
+    P: 'a + Encode + Clone,
+    V: 'a + Encode + Clone,
     H: Digest,
 {
     let mut tree = PatriciaMerkleTree::<P, V, H>::new();
