@@ -1,5 +1,6 @@
-use crate::{Encode, PatriciaMerkleTree};
+use crate::{nibble::Nibble, Encode};
 use digest::{Digest, Output};
+use std::borrow::Cow;
 
 pub fn compute_hash_from_sorted_iter<'a, P, V, H>(
     iter: impl IntoIterator<Item = (&'a P, &'a V)>,
@@ -9,13 +10,102 @@ where
     V: 'a + Encode + Clone,
     H: Digest,
 {
-    let mut tree = PatriciaMerkleTree::<P, V, H>::new();
-
+    let mut stack = Vec::<StackFrame<H>>::new();
     for (path, value) in iter {
-        tree.insert(path.clone(), value.clone());
+        let path = path.encode();
+        let value = value.encode();
+
+        if stack.is_empty() {
+            stack.push(StackFrame::new_leaf(path, value));
+        } else {
+            let prefix_len = loop {
+                let last_frame = match stack.last() {
+                    None => break 0,
+                    Some(x) => x,
+                };
+
+                let prefix_len = last_frame.prefix.count_prefix_len(path.as_ref());
+                if prefix_len == last_frame.prefix.len() {
+                    break prefix_len;
+                }
+
+                let frame = stack.pop().unwrap();
+
+                // TODO: Hash (leaf or branch).
+
+                // TODO: Hash extension if necessary (common prefix).
+
+                // TODO: Insert into parent (if any).
+                if let Some(parent_frame) = stack.last() {
+                    parent_frame.choices[frame.prefix.nth(parent_frame.prefix.len()) as usize] =
+                        todo!();
+                }
+            };
+
+            stack.push(StackFrame::new_leaf(path, value));
+        }
     }
 
-    tree.compute_hash().clone()
+    todo!()
+}
+
+struct StackFrame<'a, H: Digest> {
+    pub prefix: NibblePrefix<'a>,
+    pub choices: [(Output<H>, usize); 16],
+    pub value: Option<Cow<'a, [u8]>>,
+}
+
+impl<'a, H: Digest> StackFrame<'a, H> {
+    pub fn new_leaf(path: Cow<'a, [u8]>, value: Cow<'a, [u8]>) -> Self {
+        Self {
+            prefix: NibblePrefix::new(path),
+            choices: Default::default(),
+            value: Some(value),
+        }
+    }
+}
+
+struct NibblePrefix<'a>(Cow<'a, [u8]>, Option<Nibble>);
+
+impl<'a> NibblePrefix<'a> {
+    pub fn new(data: Cow<'a, [u8]>) -> Self {
+        Self(data, None)
+    }
+
+    pub fn len(&self) -> usize {
+        2 * self.0.len() + self.1.is_some() as usize
+    }
+
+    pub fn count_prefix_len(&self, other: &[u8]) -> usize {
+        let mut other_iter = other.iter();
+        let mut count = self
+            .0
+            .iter()
+            .zip(&mut other_iter)
+            .take_while(|(a, b)| a == b)
+            .count();
+
+        count *= 2;
+        if let (Some(a), Some(b)) = (self.1, other_iter.next()) {
+            if a as u8 == b >> 4 {
+                count += 1;
+            }
+        }
+
+        count
+    }
+
+    pub fn nth(&self, index: usize) -> Nibble {
+        match self.1 {
+            Some(x) if index == 2 * self.0.len() => x,
+            _ => Nibble::try_from(if index % 2 == 0 {
+                self.0[index >> 1] >> 4
+            } else {
+                self.0[index >> 1] & 0x0F
+            })
+            .unwrap(),
+        }
+    }
 }
 
 #[cfg(test)]
