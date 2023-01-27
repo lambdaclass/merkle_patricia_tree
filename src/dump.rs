@@ -81,17 +81,17 @@ where
         if !branch_node.value_ref.is_valid() {
             write!(self.writer, "{indent}}}").unwrap();
         } else {
-            let (key, value) = self
+            let (path, value) = self
                 .parent
                 .values
                 .get(*branch_node.value_ref)
                 .expect("inconsistent internal tree structure");
 
-            let key = key.as_ref();
+            let path = path.as_ref();
             let value = value.as_ref();
             write!(
                 self.writer,
-                "{indent}}} with_value {{ {key:02x?} => {value:02x?} }}"
+                "{indent}}} with_value {{ {path:02x?} => {value:02x?} }}"
             )
             .unwrap();
         }
@@ -113,14 +113,14 @@ where
     }
 
     fn write_leaf(&mut self, leaf_node: &LeafNode<P, V, H>) {
-        let (key, value) = self
+        let (path, value) = self
             .parent
             .values
             .get(*leaf_node.value_ref)
             .expect("inconsistent internal tree structure");
 
-        let key = key.as_ref();
+        let path = path.as_ref();
         let value = value.as_ref();
-        write!(self.writer, "leaf {{ {key:02x?} => {value:02x?} }}").unwrap();
+        write!(self.writer, "leaf {{ {path:02x?} => {value:02x?} }}").unwrap();
     }
 }

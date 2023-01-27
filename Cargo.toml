@@ -7,6 +7,10 @@ edition = "2021"
 name = "bench"
 harness = false
 
+[profile.release-with-debug]
+inherits = "release"
+debug = true
+
 [features]
 tree-dump = []
 
@@ -23,4 +27,9 @@ hasher = "0.1.4"
 hex-literal = "0.3.4"
 proptest = "1.0.0"
 rand = "0.8.5"
+serde = { version = "1.0.152", features = ["derive"] }
+serde_json = "1.0.91"
 sha3 = "0.10.6"
+tempfile = "3.3.0"
+thiserror = "1.0.38"
+uuid = { version = "1.2.2", features = ["v4"] }

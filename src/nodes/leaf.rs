@@ -3,7 +3,7 @@ use crate::{
     hashing::{NodeHash, NodeHashRef, NodeHasher, PathKind},
     nibble::NibbleSlice,
     node::{InsertAction, Node},
-    NodeRef, NodesStorage, ValueRef, ValuesStorage,
+    Encode, NodeRef, NodesStorage, ValueRef, ValuesStorage,
 };
 use digest::Digest;
 use std::marker::PhantomData;
@@ -11,8 +11,8 @@ use std::marker::PhantomData;
 #[derive(Clone, Debug)]
 pub struct LeafNode<P, V, H>
 where
-    P: AsRef<[u8]>,
-    V: AsRef<[u8]>,
+    P: Encode,
+    V: Encode,
     H: Digest,
 {
     pub(crate) value_ref: ValueRef,
@@ -23,8 +23,8 @@ where
 
 impl<P, V, H> LeafNode<P, V, H>
 where
-    P: AsRef<[u8]>,
-    V: AsRef<[u8]>,
+    P: Encode,
+    V: Encode,
     H: Digest,
 {
     pub(crate) fn new(value_ref: ValueRef) -> Self {
@@ -52,7 +52,8 @@ where
             .get(*self.value_ref)
             .expect("inconsistent internal tree structure");
 
-        path.cmp_rest(value_path.as_ref()).then_some(value)
+        let encoded_value_path = value_path.encode();
+        path.cmp_rest(encoded_value_path.as_ref()).then_some(value)
     }
 
     pub(crate) fn insert(
@@ -62,11 +63,11 @@ where
         path: NibbleSlice,
     ) -> (Node<P, V, H>, InsertAction) {
         // Possible flow paths:
-        //   leaf { key => value } -> leaf { key => value }
-        //   leaf { key => value } -> branch { 0 => leaf { key => value }, 1 => leaf { key => value } }
-        //   leaf { key => value } -> extension { [0], branch { 0 => leaf { key => value }, 1 => leaf { key => value } } }
-        //   leaf { key => value } -> extension { [0], branch { 0 => leaf { key => value } } with_value leaf { key => value } }
-        //   leaf { key => value } -> extension { [0], branch { 0 => leaf { key => value } } with_value leaf { key => value } } // leafs swapped
+        //   leaf { path => value } -> leaf { path => value }
+        //   leaf { path => value } -> branch { 0 => leaf { path => value }, 1 => leaf { path => value } }
+        //   leaf { path => value } -> extension { [0], branch { 0 => leaf { path => value }, 1 => leaf { path => value } } }
+        //   leaf { path => value } -> extension { [0], branch { 0 => leaf { path => value } } with_value leaf { path => value } }
+        //   leaf { path => value } -> extension { [0], branch { 0 => leaf { path => value } } with_value leaf { path => value } } // leafs swapped
 
         self.hash.mark_as_dirty();
 
@@ -74,12 +75,13 @@ where
             .get(*self.value_ref)
             .expect("inconsistent internal tree structure");
 
-        if path.cmp_rest(value_path.as_ref()) {
+        let encoded_value_path = value_path.encode();
+        if path.cmp_rest(encoded_value_path.as_ref()) {
             let value_ref = self.value_ref;
             (self.into(), InsertAction::Replace(value_ref))
         } else {
             let offset = path.clone().count_prefix_slice(&{
-                let mut value_path = NibbleSlice::new(value_path.as_ref());
+                let mut value_path = NibbleSlice::new(encoded_value_path.as_ref());
                 value_path.offset_add(path.offset());
                 value_path
             });
@@ -93,14 +95,14 @@ where
                     BranchNode::new({
                         let mut choices = [Default::default(); 16];
                         // TODO: Dedicated method.
-                        choices[NibbleSlice::new(value_path.as_ref())
+                        choices[NibbleSlice::new(encoded_value_path.as_ref())
                             .nth(absolute_offset)
                             .unwrap() as usize] = NodeRef::new(nodes.insert(self.into()));
                         choices
                     }),
                     InsertAction::InsertSelf,
                 )
-            } else if absolute_offset == 2 * value_path.as_ref().len() {
+            } else if absolute_offset == 2 * encoded_value_path.as_ref().len() {
                 let child_ref = nodes.insert(LeafNode::new(Default::default()).into());
                 let mut branch_node = BranchNode::new({
                     let mut choices = [Default::default(); 16];
@@ -117,7 +119,7 @@ where
                     BranchNode::new({
                         let mut choices = [Default::default(); 16];
                         // TODO: Dedicated method.
-                        choices[NibbleSlice::new(value_path.as_ref())
+                        choices[NibbleSlice::new(encoded_value_path.as_ref())
                             .nth(absolute_offset)
                             .unwrap() as usize] = NodeRef::new(nodes.insert(self.into()));
                         choices[path_branch.next().unwrap() as usize] = NodeRef::new(child_ref);
@@ -144,34 +146,31 @@ where
         &self,
         _nodes: &NodesStorage<P, V, H>,
         values: &ValuesStorage<P, V>,
-        key_offset: usize,
+        path_offset: usize,
     ) -> NodeHashRef<H> {
         self.hash.extract_ref().unwrap_or_else(|| {
-            let (key, value) = values
+            let (path, value) = values
                 .get(*self.value_ref)
                 .expect("inconsistent internal tree structure");
 
-            let key_len = NodeHasher::<H>::path_len({
-                let mut key_slice = NibbleSlice::new(key.as_ref());
-                key_slice.offset_add(key_offset);
-                key_slice.len()
-            });
+            let encoded_path = path.encode();
+            let encoded_value = value.encode();
+
+            let (path_len, path_slice) = {
+                let mut path_slice = NibbleSlice::new(encoded_path.as_ref());
+                path_slice.offset_add(path_offset);
+
+                (NodeHasher::<H>::path_len(path_slice.len()), path_slice)
+            };
             let value_len = NodeHasher::<H>::bytes_len(
-                value.as_ref().len(),
-                value.as_ref().first().copied().unwrap_or_default(),
+                encoded_value.len(),
+                encoded_value.first().copied().unwrap_or_default(),
             );
 
             let mut hasher = NodeHasher::new(&self.hash);
-            hasher.write_list_header(key_len + value_len);
-            hasher.write_path_slice(
-                &{
-                    let mut key_slice = NibbleSlice::new(key.as_ref());
-                    key_slice.offset_add(key_offset);
-                    key_slice
-                },
-                PathKind::Leaf,
-            );
-            hasher.write_bytes(value.as_ref());
+            hasher.write_list_header(path_len + value_len);
+            hasher.write_path_slice(&path_slice, PathKind::Leaf);
+            hasher.write_bytes(encoded_value.as_ref());
             hasher.finalize()
         })
     }
@@ -311,7 +310,7 @@ mod test {
         assert_eq!(insert_action, InsertAction::Insert(NodeRef::new(1)));
     }
 
-    // An insertion that returns branch [value=(x)] -> leaf (y) is not possible because of the key
+    // An insertion that returns branch [value=(x)] -> leaf (y) is not possible because of the path
     // restrictions: nibbles come in pairs. If the first nibble is different, the node will be a
     // branch but it cannot have a value. If the second nibble is different, then it'll be an
     // extension followed by a branch with value and a child.

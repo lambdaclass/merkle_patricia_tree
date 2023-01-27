@@ -2,7 +2,7 @@ use crate::{
     hashing::NodeHashRef,
     nibble::NibbleSlice,
     nodes::{BranchNode, ExtensionNode, LeafNode},
-    NodeRef, NodesStorage, ValueRef, ValuesStorage,
+    Encode, NodeRef, NodesStorage, ValueRef, ValuesStorage,
 };
 use digest::Digest;
 
@@ -15,8 +15,8 @@ use digest::Digest;
 #[derive(Clone, Debug)]
 pub enum Node<P, V, H>
 where
-    P: AsRef<[u8]>,
-    V: AsRef<[u8]>,
+    P: Encode,
+    V: Encode,
     H: Digest,
 {
     Branch(BranchNode<P, V, H>),
@@ -26,8 +26,8 @@ where
 
 impl<P, V, H> Node<P, V, H>
 where
-    P: AsRef<[u8]>,
-    V: AsRef<[u8]>,
+    P: Encode,
+    V: Encode,
     H: Digest,
 {
     pub fn get<'a>(
@@ -60,22 +60,22 @@ where
         &self,
         nodes: &NodesStorage<P, V, H>,
         values: &ValuesStorage<P, V>,
-        key_offset: usize,
+        path_offset: usize,
     ) -> NodeHashRef<H> {
         match self {
-            Node::Branch(branch_node) => branch_node.compute_hash(nodes, values, key_offset),
+            Node::Branch(branch_node) => branch_node.compute_hash(nodes, values, path_offset),
             Node::Extension(extension_node) => {
-                extension_node.compute_hash(nodes, values, key_offset)
+                extension_node.compute_hash(nodes, values, path_offset)
             }
-            Node::Leaf(leaf_node) => leaf_node.compute_hash(nodes, values, key_offset),
+            Node::Leaf(leaf_node) => leaf_node.compute_hash(nodes, values, path_offset),
         }
     }
 }
 
 impl<P, V, H> From<BranchNode<P, V, H>> for Node<P, V, H>
 where
-    P: AsRef<[u8]>,
-    V: AsRef<[u8]>,
+    P: Encode,
+    V: Encode,
     H: Digest,
 {
     fn from(value: BranchNode<P, V, H>) -> Self {
@@ -85,8 +85,8 @@ where
 
 impl<P, V, H> From<ExtensionNode<P, V, H>> for Node<P, V, H>
 where
-    P: AsRef<[u8]>,
-    V: AsRef<[u8]>,
+    P: Encode,
+    V: Encode,
     H: Digest,
 {
     fn from(value: ExtensionNode<P, V, H>) -> Self {
@@ -96,8 +96,8 @@ where
 
 impl<P, V, H> From<LeafNode<P, V, H>> for Node<P, V, H>
 where
-    P: AsRef<[u8]>,
-    V: AsRef<[u8]>,
+    P: Encode,
+    V: Encode,
     H: Digest,
 {
     fn from(value: LeafNode<P, V, H>) -> Self {

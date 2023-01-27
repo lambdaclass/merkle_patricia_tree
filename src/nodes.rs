@@ -44,7 +44,7 @@ macro_rules! pmt_node {
     (
         @( $nodes:expr, $values:expr )
         branch { $( $choice:expr => $child_type:ident { $( $child_tokens:tt )* } ),+ $(,)? }
-        with_leaf { $key:expr => $value:expr }
+        with_leaf { $path:expr => $value:expr }
     ) => {{
         let mut branch_node = $crate::nodes::BranchNode::<Vec<u8>, _, sha3::Keccak256>::new({
             let mut choices = [$crate::storage::NodeRef::default(); 16];
@@ -57,7 +57,7 @@ macro_rules! pmt_node {
             )*
             choices
         });
-        branch_node.update_value_ref($crate::storage::ValueRef::new($values.insert(($key, $value))));
+        branch_node.update_value_ref($crate::storage::ValueRef::new($values.insert(($path, $value))));
         branch_node
     }};
 
@@ -80,19 +80,20 @@ macro_rules! pmt_node {
         )
     };
 
-    ( @( $nodes:expr, $values:expr ) leaf { $key:expr => $value:expr } ) => {
+    ( @( $nodes:expr, $values:expr ) leaf { $path:expr => $value:expr } ) => {
         $crate::nodes::LeafNode::<Vec<u8>, _, sha3::Keccak256>::new(
-            $crate::storage::ValueRef::new($values.insert(($key, $value)))
+            $crate::storage::ValueRef::new($values.insert(($path, $value)))
         )
     };
 }
 
 #[cfg(test)]
 #[macro_export]
-macro_rules! pmt_key {
-    ( $key:literal ) => {{
-        assert!($key.len() % 2 == 1);
-        $key.as_bytes()
+macro_rules! pmt_path {
+    ( $path:literal ) => {{
+        assert!($path.len() % 2 == 1);
+        $path
+            .as_bytes()
             .chunks(2)
             .map(|bytes| u8::from_str_radix(std::str::from_utf8(bytes).unwrap(), 16).unwrap())
             .collect::<Vec<u8>>()

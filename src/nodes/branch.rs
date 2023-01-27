@@ -3,7 +3,7 @@ use crate::{
     hashing::{NodeHash, NodeHashRef, NodeHasher},
     nibble::NibbleSlice,
     node::{InsertAction, Node},
-    NodeRef, NodesStorage, ValueRef, ValuesStorage,
+    Encode, NodeRef, NodesStorage, ValueRef, ValuesStorage,
 };
 use digest::Digest;
 use std::marker::PhantomData;
@@ -11,8 +11,8 @@ use std::marker::PhantomData;
 #[derive(Clone, Debug)]
 pub struct BranchNode<P, V, H>
 where
-    P: AsRef<[u8]>,
-    V: AsRef<[u8]>,
+    P: Encode,
+    V: Encode,
     H: Digest,
 {
     // The node zero is always the root, which cannot be a child.
@@ -25,8 +25,8 @@ where
 
 impl<P, V, H> BranchNode<P, V, H>
 where
-    P: AsRef<[u8]>,
-    V: AsRef<[u8]>,
+    P: Encode,
+    V: Encode,
     H: Digest,
 {
     pub(crate) fn new(choices: [NodeRef; 16]) -> Self {
@@ -126,7 +126,7 @@ where
         &self,
         nodes: &NodesStorage<P, V, H>,
         values: &ValuesStorage<P, V>,
-        key_offset: usize,
+        path_offset: usize,
     ) -> NodeHashRef<H> {
         self.hash.extract_ref().unwrap_or_else(|| {
             let mut children_len: usize = self
@@ -141,7 +141,7 @@ where
                                 .expect("inconsistent internal tree structure");
 
                             let child_hash_ref =
-                                child_node.compute_hash(nodes, values, key_offset + 1);
+                                child_node.compute_hash(nodes, values, path_offset + 1);
                             match child_hash_ref {
                                 NodeHashRef::Inline(x) => x.len(),
                                 NodeHashRef::Hashed(x) => NodeHasher::<H>::bytes_len(x.len(), x[0]),
@@ -151,18 +151,21 @@ where
                 })
                 .sum();
 
-            if self.value_ref.is_valid() {
+            let encoded_value = if self.value_ref.is_valid() {
                 let (_, value) = values
                     .get(*self.value_ref)
                     .expect("inconsistent internal tree structure");
+                let encoded_value = value.encode();
 
                 children_len += NodeHasher::<H>::bytes_len(
-                    value.as_ref().len(),
-                    value.as_ref().first().copied().unwrap_or_default(),
+                    encoded_value.len(),
+                    encoded_value.first().copied().unwrap_or_default(),
                 );
+                Some(encoded_value)
             } else {
                 children_len += 1;
-            }
+                None
+            };
 
             let mut hasher = NodeHasher::new(&self.hash);
             hasher.write_list_header(children_len);
@@ -173,7 +176,7 @@ where
                         .get(**choice)
                         .expect("inconsistent internal tree structure");
 
-                    let child_hash_ref = child_node.compute_hash(nodes, values, key_offset + 1);
+                    let child_hash_ref = child_node.compute_hash(nodes, values, path_offset + 1);
                     match child_hash_ref {
                         NodeHashRef::Inline(x) => hasher.write_raw(&x),
                         NodeHashRef::Hashed(x) => hasher.write_bytes(&x),
@@ -183,12 +186,8 @@ where
                 }
             });
 
-            if self.value_ref.is_valid() {
-                let (_, value) = values
-                    .get(*self.value_ref)
-                    .expect("inconsistent internal tree structure");
-
-                hasher.write_bytes(value.as_ref());
+            if let Some(encoded_value) = encoded_value {
+                hasher.write_bytes(encoded_value.as_ref());
             } else {
                 hasher.write_bytes(&[]);
             }
