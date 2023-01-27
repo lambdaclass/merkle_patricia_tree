@@ -4,7 +4,7 @@ set xtic auto                          # set xtics automatically
 set ytic auto                          # set ytics automatically
 set xlabel "Key/values Inserted"
 set ylabel "Time in ns"
-set term svg
+set terminal svg enhanced background rgb 'white'
 set logscale xy
 set xrange [1000:1000000]
 
