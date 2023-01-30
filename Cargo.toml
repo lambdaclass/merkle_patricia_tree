@@ -21,6 +21,7 @@ slab = "0.4.7"
 smallvec = { version = "1.10.0", features = ["const_generics", "union"] }
 
 [dev-dependencies]
+bincode = "1.3.3"
 cita_trie = "4.0.0"
 criterion = "0.4.0"
 hasher = "0.1.4"
@@ -30,6 +31,7 @@ rand = "0.8.5"
 serde = { version = "1.0.152", features = ["derive"] }
 serde_json = "1.0.91"
 sha3 = "0.10.6"
+sled = "0.34.7"
 tempfile = "3.3.0"
 thiserror = "1.0.38"
 uuid = { version = "1.2.2", features = ["v4"] }
