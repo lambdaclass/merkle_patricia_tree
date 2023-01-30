@@ -124,6 +124,8 @@ You can profile some example programs and generate plots using the following com
 make profile
 ```
 
+<img src="plots/profile-logscale.svg?raw=true" width="100%">
+
 ## 🛠 Contributing
 
 The open source community is a fantastic place for learning, inspiration, and creation, and this is all thanks to contributions from people like you. Your contributions are **greatly appreciated**.
