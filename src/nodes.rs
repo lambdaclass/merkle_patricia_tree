@@ -1,6 +1,6 @@
 pub use self::{
     branch::{compute_branch_hash, BranchNode},
-    extension::ExtensionNode,
+    extension::{compute_extension_hash, ExtensionNode},
     leaf::{compute_leaf_hash, LeafNode},
 };
 

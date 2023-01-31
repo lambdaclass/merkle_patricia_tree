@@ -151,22 +151,33 @@ where
             let child_hash_ref =
                 child_node.compute_hash(nodes, values, path_offset + self.prefix.len());
 
-            let prefix_len = NodeHasher::<H>::path_len(self.prefix.len());
-            let child_len = match &child_hash_ref {
-                NodeHashRef::Inline(x) => x.len(),
-                NodeHashRef::Hashed(x) => NodeHasher::<H>::bytes_len(x.len(), x[0]),
-            };
-
-            let mut hasher = NodeHasher::new(&self.hash);
-            hasher.write_list_header(prefix_len + child_len);
-            hasher.write_path_vec(&self.prefix, PathKind::Extension);
-            match child_hash_ref {
-                NodeHashRef::Inline(x) => hasher.write_raw(&x),
-                NodeHashRef::Hashed(x) => hasher.write_bytes(&x),
-            }
-            hasher.finalize()
+            compute_extension_hash(&self.hash, &self.prefix, child_hash_ref)
         })
     }
+}
+
+pub fn compute_extension_hash<'a, H>(
+    hash: &'a NodeHash<H>,
+    prefix: &NibbleVec,
+    child_hash_ref: NodeHashRef<H>,
+) -> NodeHashRef<'a, H>
+where
+    H: Digest,
+{
+    let prefix_len = NodeHasher::<H>::path_len(prefix.len());
+    let child_len = match &child_hash_ref {
+        NodeHashRef::Inline(x) => x.len(),
+        NodeHashRef::Hashed(x) => NodeHasher::<H>::bytes_len(x.len(), x[0]),
+    };
+
+    let mut hasher = NodeHasher::new(hash);
+    hasher.write_list_header(prefix_len + child_len);
+    hasher.write_path_vec(prefix, PathKind::Extension);
+    match child_hash_ref {
+        NodeHashRef::Inline(x) => hasher.write_raw(&x),
+        NodeHashRef::Hashed(x) => hasher.write_bytes(&x),
+    }
+    hasher.finalize()
 }
 
 #[cfg(test)]

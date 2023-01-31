@@ -3,7 +3,7 @@
 use crate::{
     hashing::{DelimitedHash, NodeHash},
     nibble::{Nibble, NibbleSlice},
-    nodes::{compute_branch_hash, compute_leaf_hash},
+    nodes::{compute_branch_hash, compute_extension_hash, compute_leaf_hash},
     Encode,
 };
 use digest::{Digest, Output};
@@ -15,7 +15,7 @@ pub fn compute_hash_from_sorted_iter<'a, P, V, H>(
 where
     P: 'a + Encode,
     V: 'a + Encode,
-    H: Digest + Debug,
+    H: Digest,
 {
     let mut stack = Vec::<StackFrame<H>>::new();
     let walk_stack = |stack: &mut Vec<StackFrame<_>>, target: Option<&[u8]>| loop {
@@ -27,6 +27,7 @@ where
             Some(path) => {
                 let prefix_len = last_frame.prefix.count_prefix_len(path.as_ref());
                 if prefix_len == last_frame.prefix.len() {
+                    // TODO: Should this break be here? (or the entire if on that matter).
                     break None;
                 }
                 Some(prefix_len)
@@ -39,14 +40,15 @@ where
 
         // Hash leaf or branch.
         let frame_hash = NodeHash::<H>::default();
-        match (frame.choices, frame.value) {
+        let is_branch = match (frame.choices, frame.value) {
             (Some(choices), value) => {
                 compute_branch_hash(&frame_hash, &choices, value.as_deref());
+                true
             }
             (None, Some(value)) => {
                 // Extract the entire prefix, then apply an offset within a NibbleSlice.
                 // Since it's a leaf, it'll never end with a single nibble.
-                let prefix = frame.prefix.into_bytes();
+                let prefix = frame.prefix.as_bytes();
                 let prefix_offset = match stack.last() {
                     Some(x) => x.prefix.len() + x.choices.is_some() as usize,
                     None => prefix_len.map(|x| x + 1).unwrap_or_default(),
@@ -56,11 +58,10 @@ where
                 prefix_slice.offset_add(prefix_offset);
 
                 compute_leaf_hash(&frame_hash, prefix_slice, value.as_ref());
-                println!("#### {prefix_offset} {prefix_len:?}");
-                println!("#### {frame_hash:02x?}");
+                false
             }
             _ => unreachable!(),
-        }
+        };
 
         // TODO: Add branch if necessary:
         //   - Has a target (or don't add branches when there's only a leaf).
@@ -70,6 +71,7 @@ where
             Some(prefix_len) if stack.is_empty() => {
                 let index = frame.prefix.truncate_and_get(prefix_len) as usize;
                 stack.push(StackFrame {
+                    offset: frame.offset - 1,
                     prefix: frame.prefix,
                     choices: Some({
                         let mut choices = <[DelimitedHash<H>; 16]>::default();
@@ -91,9 +93,31 @@ where
             let choices = parent_frame.choices.get_or_insert_with(Default::default);
             let choice_index = frame.prefix.nth(parent_frame.prefix.len()) as usize;
 
-            choices[choice_index] = frame_hash.into();
+            let prefix_len = frame.offset - parent_frame.offset;
+            if is_branch {
+                let prefix = {
+                    let mut x = NibbleSlice::new(frame.prefix.0.as_ref());
+                    x.offset_add(parent_frame.offset);
+                    x.split_to_vec(prefix_len)
+                };
+
+                let extension_hash = NodeHash::default();
+                compute_extension_hash(&extension_hash, &prefix, frame_hash.extract_ref().unwrap());
+                choices[choice_index] = extension_hash.into();
+            } else {
+                choices[choice_index] = frame_hash.into();
+            }
         } else {
-            break Some(frame_hash.into_inner());
+            break if is_branch && frame.prefix.len() != 0 {
+                let prefix =
+                    { NibbleSlice::new(frame.prefix.0.as_ref()).split_to_vec(frame.offset) };
+
+                let extension_hash = NodeHash::default();
+                compute_extension_hash(&extension_hash, &prefix, frame_hash.extract_ref().unwrap());
+                Some(extension_hash.into_inner())
+            } else {
+                Some(frame_hash.into_inner())
+            };
         }
     };
 
@@ -131,6 +155,7 @@ struct StackFrame<'a, H>
 where
     H: Digest,
 {
+    pub offset: usize,
     pub prefix: NibblePrefix<'a>,
     pub choices: Option<[DelimitedHash<H>; 16]>,
     pub value: Option<Cow<'a, [u8]>>,
@@ -142,6 +167,7 @@ where
 {
     pub fn new_leaf(path: Cow<'a, [u8]>, value: Cow<'a, [u8]>) -> Self {
         Self {
+            offset: 2 * path.len(),
             prefix: NibblePrefix::new(path),
             choices: Default::default(),
             value: Some(value),
@@ -150,48 +176,53 @@ where
 }
 
 #[derive(Debug)]
-struct NibblePrefix<'a>(Cow<'a, [u8]>, Option<Nibble>);
+struct NibblePrefix<'a>(Cow<'a, [u8]>, bool);
 
 impl<'a> NibblePrefix<'a> {
     pub fn new(data: Cow<'a, [u8]>) -> Self {
-        Self(data, None)
+        Self(data, false)
     }
 
     pub fn len(&self) -> usize {
-        2 * self.0.len() + self.1.is_some() as usize
+        2 * self.0.len() - self.1 as usize
     }
 
     pub fn truncate_and_get(&mut self, prefix_len: usize) -> Nibble {
-        let next_nibble = if prefix_len % 2 == 0 {
-            if (prefix_len >> 1) == self.0.len() {
-                self.1.unwrap()
-            } else {
-                Nibble::try_from(self.0[prefix_len >> 1] >> 4).unwrap()
-            }
+        let next_nibble = Nibble::try_from(if prefix_len % 2 == 0 {
+            self.0[prefix_len >> 1] >> 4
         } else {
-            Nibble::try_from(self.0[prefix_len >> 1] & 0x0F).unwrap()
-        };
+            // Check out of bounds when ending in half-byte.
+            if (prefix_len >> 1) + 1 == self.0.len() && self.1 {
+                panic!("out of range")
+            } else {
+                self.0[prefix_len >> 1] & 0x0F
+            }
+        })
+        .unwrap();
 
+        if prefix_len % 2 != 0 {
+            self.1 = true;
+        }
         match &mut self.0 {
-            Cow::Borrowed(x) => *x = &x[..prefix_len >> 1],
-            Cow::Owned(x) => x.truncate(prefix_len >> 1),
+            Cow::Borrowed(x) => *x = &x[..(prefix_len + 1) >> 1],
+            Cow::Owned(x) => x.truncate((prefix_len + 1) >> 1),
         }
 
         next_nibble
     }
 
     pub fn count_prefix_len(&self, other: &[u8]) -> usize {
-        let mut other_iter = other.iter();
         let mut count = self
             .0
             .iter()
-            .zip(&mut other_iter)
+            .take(self.len() - if self.1 { 1 } else { 0 })
+            .zip(other.iter())
             .take_while(|(a, b)| a == b)
             .count();
 
         count *= 2;
-        if let (Some(a), Some(b)) = (self.1, other_iter.next()) {
-            if a as u8 == b >> 4 {
+        if let (Some(a), Some(b)) = (self.0.get(count), other.get(count)) {
+            if a >> 4 == b >> 4 {
                 count += 1;
             }
         }
@@ -200,19 +231,20 @@ impl<'a> NibblePrefix<'a> {
     }
 
     pub fn nth(&self, index: usize) -> Nibble {
-        match self.1 {
-            Some(x) if index == 2 * self.0.len() => x,
-            _ => Nibble::try_from(if index % 2 == 0 {
-                self.0[index >> 1] >> 4
-            } else {
-                self.0[index >> 1] & 0x0F
-            })
-            .unwrap(),
+        if self.1 && index == 2 * self.0.len() - 1 {
+            panic!("out of bounds");
         }
+
+        Nibble::try_from(if index % 2 == 0 {
+            self.0[index >> 1] >> 4
+        } else {
+            self.0[index >> 1] & 0x0F
+        })
+        .unwrap()
     }
 
-    pub fn into_bytes(&self) -> &[u8] {
-        assert!(self.1.is_none());
+    pub fn as_bytes(&self) -> &[u8] {
+        assert!(!self.1);
         self.0.as_ref()
     }
 }
@@ -269,32 +301,49 @@ mod test {
         assert_eq!(computed_hash.as_slice(), expected_hash.as_slice());
     }
 
-    // proptest! {
-    //     #[test]
-    //     fn proptest_compare_hashes_simple(path in vec(any::<u8>(), 1..32), value in vec(any::<u8>(), 1..100)) {
-    //         expect_hash(vec![(path, value)])?;
-    //     }
+    #[test]
+    fn test_extension_tree() {
+        const DATA: &[(&[u8], &[u8])] = &[
+            (&[0x00], &[0x00]),
+            (&[0x01], &[0x01]),
+            (&[0x02], &[0x02]),
+            (&[0x03], &[0x03]),
+        ];
 
-    //     #[test]
-    //     fn proptest_compare_hashes_multiple(data in btree_set((vec(any::<u8>(), 1..32), vec(any::<u8>(), 1..100)), 1..100)) {
-    //         expect_hash(data.into_iter().collect())?;
-    //     }
-    // }
+        let computed_hash =
+            compute_hash_from_sorted_iter::<_, _, Keccak256>(DATA.iter().map(|(a, b)| (a, b)));
+        let expected_hash =
+            compute_hash_cita_trie(DATA.iter().map(|(a, b)| (a.to_vec(), b.to_vec())).collect());
 
-    // fn expect_hash(data: Vec<(Vec<u8>, Vec<u8>)>) -> Result<(), TestCaseError> {
-    //     prop_assert_eq!(
-    //         compute_hash_cita_trie(data.clone()),
-    //         compute_hash_ours(data)
-    //     );
-    //     Ok(())
-    // }
+        assert_eq!(computed_hash.as_slice(), expected_hash.as_slice());
+    }
 
-    // fn compute_hash_ours(data: Vec<(Vec<u8>, Vec<u8>)>) -> Vec<u8> {
-    //     PatriciaMerkleTree::<_, _, Keccak256>::compute_hash_from_sorted_iter(
-    //         data.iter().map(|(a, b)| (a, b)),
-    //     )
-    //     .to_vec()
-    // }
+    proptest! {
+        #[test]
+        fn proptest_compare_hashes_simple(path in vec(any::<u8>(), 1..32), value in vec(any::<u8>(), 1..100)) {
+            expect_hash(vec![(path, value)])?;
+        }
+
+        #[test]
+        fn proptest_compare_hashes_multiple(data in btree_set((vec(any::<u8>(), 1..32), vec(any::<u8>(), 1..100)), 1..100)) {
+            expect_hash(data.into_iter().collect())?;
+        }
+    }
+
+    fn expect_hash(data: Vec<(Vec<u8>, Vec<u8>)>) -> Result<(), TestCaseError> {
+        prop_assert_eq!(
+            compute_hash_cita_trie(data.clone()),
+            compute_hash_ours(data)
+        );
+        Ok(())
+    }
+
+    fn compute_hash_ours(data: Vec<(Vec<u8>, Vec<u8>)>) -> Vec<u8> {
+        PatriciaMerkleTree::<_, _, Keccak256>::compute_hash_from_sorted_iter(
+            data.iter().map(|(a, b)| (a, b)),
+        )
+        .to_vec()
+    }
 
     fn compute_hash_cita_trie(data: Vec<(Vec<u8>, Vec<u8>)>) -> Vec<u8> {
         use cita_trie::MemoryDB;
