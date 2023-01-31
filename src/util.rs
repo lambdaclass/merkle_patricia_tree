@@ -7,7 +7,7 @@ use crate::{
     Encode,
 };
 use digest::{Digest, Output};
-use std::{borrow::Cow, fmt::Debug};
+use std::{borrow::Cow, cmp::min, fmt::Debug};
 
 pub fn compute_hash_from_sorted_iter<'a, P, V, H>(
     iter: impl IntoIterator<Item = (&'a P, &'a V)>,
@@ -15,7 +15,7 @@ pub fn compute_hash_from_sorted_iter<'a, P, V, H>(
 where
     P: 'a + Encode,
     V: 'a + Encode,
-    H: Digest,
+    H: Digest + Debug,
 {
     let mut stack = Vec::<StackFrame<H>>::new();
     let walk_stack = |stack: &mut Vec<StackFrame<_>>, target: Option<&[u8]>| loop {
@@ -27,7 +27,6 @@ where
             Some(path) => {
                 let prefix_len = last_frame.prefix.count_prefix_len(path.as_ref());
                 if prefix_len == last_frame.prefix.len() {
-                    // TODO: Should this break be here? (or the entire if on that matter).
                     break None;
                 }
                 Some(prefix_len)
@@ -50,9 +49,27 @@ where
                 // Since it's a leaf, it'll never end with a single nibble.
                 let prefix = frame.prefix.as_bytes();
                 let prefix_offset = match stack.last() {
-                    Some(x) => x.prefix.len() + x.choices.is_some() as usize,
+                    Some(x) => {
+                        x.offset
+                            + match x.choices {
+                                Some(_) => {
+                                    1 + (stack.is_empty()
+                                        || prefix_len.unwrap_or(0) > stack.last().unwrap().offset)
+                                        as usize
+                                }
+                                None => 1,
+                            }
+                    }
                     None => prefix_len.map(|x| x + 1).unwrap_or_default(),
                 };
+                println!(
+                    "value = {value:?}; prefix_offset = {prefix_offset} ({})",
+                    match (stack.last(), prefix_len) {
+                        (Some(x), Some(prefix_len)) =>
+                            x.choices.is_some() && prefix_len > stack.last().unwrap().offset,
+                        _ => stack.is_empty(),
+                    },
+                );
 
                 let mut prefix_slice = NibbleSlice::new(prefix);
                 prefix_slice.offset_add(prefix_offset);
@@ -63,15 +80,15 @@ where
             _ => unreachable!(),
         };
 
-        // TODO: Add branch if necessary:
+        // Add branch if necessary:
         //   - Has a target (or don't add branches when there's only a leaf).
         //   - Popped frame is a leaf.
         //   - Has no matching branch (TODO: at least no parent, but maybe when an extension is needed too?).
         match prefix_len {
-            Some(prefix_len) if stack.is_empty() => {
+            Some(prefix_len) if stack.is_empty() || prefix_len > stack.last().unwrap().offset => {
                 let index = frame.prefix.truncate_and_get(prefix_len) as usize;
                 stack.push(StackFrame {
-                    offset: frame.offset - 1,
+                    offset: prefix_len + is_branch as usize,
                     prefix: frame.prefix,
                     choices: Some({
                         let mut choices = <[DelimitedHash<H>; 16]>::default();
@@ -86,18 +103,20 @@ where
             _ => {}
         }
 
-        // TODO: Add extension if necessary.
-
-        // TODO: Insert into parent (when not the root).
+        // Insert into parent (when not the root).
+        // TODO: Maybe improve this piece of code?
         if let Some(parent_frame) = stack.last_mut() {
+            // let prefix_len = min(frame.offset, parent_frame.offset);
+            let prefix_offset = parent_frame.offset + parent_frame.choices.is_some() as usize;
+            let prefix_len = frame.offset - is_branch as usize + prefix_offset - 1;
+
             let choices = parent_frame.choices.get_or_insert_with(Default::default);
             let choice_index = frame.prefix.nth(parent_frame.prefix.len()) as usize;
 
-            let prefix_len = frame.offset - parent_frame.offset;
-            if is_branch {
+            if is_branch && prefix_len != 0 {
                 let prefix = {
                     let mut x = NibbleSlice::new(frame.prefix.0.as_ref());
-                    x.offset_add(parent_frame.offset);
+                    x.offset_add(prefix_offset);
                     x.split_to_vec(prefix_len)
                 };
 
@@ -125,15 +144,12 @@ where
         let path = path.encode();
         let value = value.encode();
 
-        if stack.is_empty() {
-            stack.push(StackFrame::new_leaf(path, value));
-        } else {
+        if !stack.is_empty() {
             walk_stack(&mut stack, Some(path.as_ref()));
-
-            // TODO: Hash extension if necessary (common prefix).
-
-            stack.push(StackFrame::new_leaf(path, value));
         }
+        stack.push(StackFrame::new_leaf(path, value));
+
+        println!("Stack: {stack:02x?}");
     }
 
     if stack.is_empty() {
@@ -254,11 +270,39 @@ mod test {
     use super::compute_hash_from_sorted_iter;
     use crate::PatriciaMerkleTree;
     use proptest::{
-        collection::{btree_set, vec},
+        collection::{btree_map, vec},
         prelude::*,
     };
     use sha3::Keccak256;
     use std::sync::Arc;
+
+    #[test]
+    fn test_asdf() {
+        const DATA: &[(&[u8], &[u8])] = &[
+            (&[0x00], &[0x00]),
+            (&[0xB0], &[0x01]),
+            (&[0xB1], &[0x02]), //
+        ];
+
+        let a = compute_hash_from_sorted_iter::<_, _, Keccak256>(DATA.iter().map(|(a, b)| (a, b)));
+        let b =
+            compute_hash_cita_trie(DATA.iter().map(|(a, b)| (a.to_vec(), b.to_vec())).collect());
+        assert_eq!(a.as_slice(), b.as_slice());
+    }
+
+    #[test]
+    fn test_asdf2() {
+        const DATA: &[(&[u8], &[u8])] = &[
+            (&[0x00], &[0x00]),
+            (&[0xB6], &[0x01]),
+            (&[0xB6, 0x00], &[0x02]), //
+        ];
+
+        let a = compute_hash_from_sorted_iter::<_, _, Keccak256>(DATA.iter().map(|(a, b)| (a, b)));
+        let b =
+            compute_hash_cita_trie(DATA.iter().map(|(a, b)| (a.to_vec(), b.to_vec())).collect());
+        assert_eq!(a.as_slice(), b.as_slice());
+    }
 
     #[test]
     fn test_empty_tree() {
@@ -325,7 +369,7 @@ mod test {
         }
 
         #[test]
-        fn proptest_compare_hashes_multiple(data in btree_set((vec(any::<u8>(), 1..32), vec(any::<u8>(), 1..100)), 1..100)) {
+        fn proptest_compare_hashes_multiple(data in btree_map(vec(any::<u8>(), 1..32), vec(any::<u8>(), 1..100), 1..100)) {
             expect_hash(data.into_iter().collect())?;
         }
     }
