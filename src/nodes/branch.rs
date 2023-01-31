@@ -256,7 +256,7 @@ where
         .sum();
 
     if let Some(value) = value {
-        NodeHasher::<H>::bytes_len(value.len(), value.first().copied().unwrap_or_default());
+        children_len += NodeHasher::<H>::bytes_len(value.len(), value.first().copied().unwrap_or_default());
     } else {
         children_len += 1;
     }
