@@ -142,6 +142,25 @@ where
         }
     }
 
+    pub(crate) fn remove(
+        self,
+        _nodes: &mut NodesStorage<P, V, H>,
+        values: &mut ValuesStorage<P, V>,
+        path: NibbleSlice,
+    ) -> (Option<Node<P, V, H>>, Option<V>) {
+        let (value_path, _) = values
+            .get(*self.value_ref)
+            .expect("inconsistent internal tree structure");
+
+        let encoded_value_path = value_path.encode();
+        if path.cmp_rest(encoded_value_path.as_ref()) {
+            let (_, value) = values.remove(*self.value_ref);
+            (None, Some(value))
+        } else {
+            (Some(self.into()), None)
+        }
+    }
+
     pub fn compute_hash(
         &self,
         _nodes: &NodesStorage<P, V, H>,
@@ -317,6 +336,34 @@ mod test {
     //
     // Because of that, the two tests that would check those cases are neither necessary nor
     // possible.
+
+    #[test]
+    fn remove_self() {
+        let (mut nodes, mut values) = pmt_state!(Vec<u8>);
+
+        let node = pmt_node! { @(nodes, values)
+            leaf { vec![0x12, 0x34] => vec![0x12, 0x34, 0x56, 0x78] }
+        };
+
+        let (node, value) = node.remove(&mut nodes, &mut values, NibbleSlice::new(&[0x12, 0x34]));
+
+        assert!(node.is_none());
+        assert_eq!(value, Some(vec![0x12, 0x34, 0x56, 0x78]));
+    }
+
+    #[test]
+    fn remove_none() {
+        let (mut nodes, mut values) = pmt_state!(Vec<u8>);
+
+        let node = pmt_node! { @(nodes, values)
+            leaf { vec![0x12, 0x34] => vec![0x12, 0x34, 0x56, 0x78] }
+        };
+
+        let (node, value) = node.remove(&mut nodes, &mut values, NibbleSlice::new(&[0x12]));
+
+        assert!(node.is_some());
+        assert_eq!(value, None);
+    }
 
     #[test]
     fn compute_hash() {
