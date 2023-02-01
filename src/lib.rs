@@ -133,6 +133,11 @@ where
         }
     }
 
+    /// Remove a value from the tree.
+    pub fn remove(&mut self, _path: P) -> Option<V> {
+        todo!()
+    }
+
     /// Return the root hash of the tree (or recompute if needed).
     pub fn compute_hash(&mut self) -> &Output<H> {
         if self.hash.0 {
