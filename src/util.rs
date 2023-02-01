@@ -7,7 +7,7 @@ use crate::{
     Encode,
 };
 use digest::{Digest, Output};
-use std::{borrow::Cow, cmp::min, fmt::Debug};
+use std::{borrow::Cow, fmt::Debug};
 
 pub fn compute_hash_from_sorted_iter<'a, P, V, H>(
     iter: impl IntoIterator<Item = (&'a P, &'a V)>,
@@ -26,13 +26,16 @@ where
         let prefix_len = match target {
             Some(path) => {
                 let prefix_len = last_frame.prefix.count_prefix_len(path.as_ref());
-                if prefix_len == last_frame.prefix.len() {
-                    break None;
-                }
-                Some(prefix_len)
+                if prefix_len == last_frame.offset {
+                    // break None;
+                    Some(2 * path.len())
+                }else {
+                dbg!((prefix_len, last_frame.offset, &last_frame.prefix));
+                Some(prefix_len)}
             }
             None => None,
         };
+        dbg!(prefix_len);
 
         // At this point, just extract the frame since it won't be used anymore.
         let mut frame = stack.pop().unwrap();
@@ -53,8 +56,7 @@ where
                         x.offset
                             + match x.choices {
                                 Some(_) => {
-                                    1 + (stack.is_empty()
-                                        || prefix_len.unwrap_or(0) > stack.last().unwrap().offset)
+                                    1 + (prefix_len.unwrap_or(0) > stack.last().unwrap().offset)
                                         as usize
                                 }
                                 None => 1,
@@ -62,14 +64,14 @@ where
                     }
                     None => prefix_len.map(|x| x + 1).unwrap_or_default(),
                 };
-                println!(
-                    "value = {value:?}; prefix_offset = {prefix_offset} ({})",
-                    match (stack.last(), prefix_len) {
-                        (Some(x), Some(prefix_len)) =>
-                            x.choices.is_some() && prefix_len > stack.last().unwrap().offset,
-                        _ => stack.is_empty(),
-                    },
-                );
+                // println!(
+                //     "value = {value:?}; prefix_offset = {prefix_offset} ({})",
+                //     match (stack.last(), prefix_len) {
+                //         (Some(x), Some(prefix_len)) =>
+                //             x.choices.is_some() && prefix_len > stack.last().unwrap().offset,
+                //         _ => stack.is_empty(),
+                //     },
+                // );
 
                 let mut prefix_slice = NibbleSlice::new(prefix);
                 prefix_slice.offset_add(prefix_offset);
@@ -108,10 +110,10 @@ where
         if let Some(parent_frame) = stack.last_mut() {
             // let prefix_len = min(frame.offset, parent_frame.offset);
             let prefix_offset = parent_frame.offset + parent_frame.choices.is_some() as usize;
-            let prefix_len = frame.offset - is_branch as usize + prefix_offset - 1;
+            let prefix_len = frame.offset - is_branch as usize + 1 - prefix_offset;
 
             let choices = parent_frame.choices.get_or_insert_with(Default::default);
-            let choice_index = frame.prefix.nth(parent_frame.prefix.len()) as usize;
+            let choice_index = frame.prefix.nth(parent_frame.offset) as usize;
 
             if is_branch && prefix_len != 0 {
                 let prefix = {
@@ -149,7 +151,7 @@ where
         }
         stack.push(StackFrame::new_leaf(path, value));
 
-        println!("Stack: {stack:02x?}");
+        // println!("Stack: {stack:02x?}");
     }
 
     if stack.is_empty() {
@@ -296,6 +298,20 @@ mod test {
             (&[0x00], &[0x00]),
             (&[0xB6], &[0x01]),
             (&[0xB6, 0x00], &[0x02]), //
+        ];
+
+        let a = compute_hash_from_sorted_iter::<_, _, Keccak256>(DATA.iter().map(|(a, b)| (a, b)));
+        let b =
+            compute_hash_cita_trie(DATA.iter().map(|(a, b)| (a.to_vec(), b.to_vec())).collect());
+        assert_eq!(a.as_slice(), b.as_slice());
+    }
+
+    #[test]
+    fn test_asdf3() {
+        const DATA: &[(&[u8], &[u8])] = &[
+            (&[0x00], &[0x00]),
+            (&[0xB6, 0x00], &[0x01]),
+            (&[0xB6, 0x01], &[0x02]), //
         ];
 
         let a = compute_hash_from_sorted_iter::<_, _, Keccak256>(DATA.iter().map(|(a, b)| (a, b)));

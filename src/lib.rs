@@ -12,7 +12,7 @@ use self::{
 use digest::{Digest, Output};
 use hashing::NodeHashRef;
 use slab::Slab;
-use std::mem::{replace, size_of};
+use std::{mem::{replace, size_of}, fmt::Debug};
 
 mod codec;
 #[cfg(feature = "tree-dump")]
@@ -185,6 +185,7 @@ where
     where
         P: 'a,
         V: 'a,
+        H: Debug,
     {
         util::compute_hash_from_sorted_iter::<P, V, H>(iter)
     }
