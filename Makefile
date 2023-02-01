@@ -22,7 +22,8 @@ ext-bench:
 	cd ./external-benches/geth/; GOMAXPROCS=1 go test -bench=.
 
 storage-bench:
-	hyperfine --prepare 'cargo b --release --all-targets' -L nodes 100,1000,100000,200000 'cargo r --release --example storage-sled {nodes}'
+	hyperfine --prepare 'cargo b --release --all-targets' -w 2 -L nodes 100,1000,10000,100000 'cargo r --release --example storage-sled {nodes}'
+	hyperfine --prepare 'cargo b --release --all-targets' -w 2 -L nodes 100,1000,10000,100000 'cargo r --release --example storage-mdbx {nodes}'
 
 profile:
 	 cargo build --examples --profile=release-with-debug && \
