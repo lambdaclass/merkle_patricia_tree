@@ -102,9 +102,9 @@ On a AMD Ryzen 9 5950x 3.4 Ghz with 128 Gb RAM using `Keccak256` as the hash fun
 | root Keccak256 | `113.63 µs` | `557.49 µs` | `1.1775 ms` | `2.3716 ms` | `5.8113 ms` | `11.737 ms` |
 | geth root Keccak256 | `102.358 µs` | `504.081 µs` | `989.531 µs` | `1.936 ms` | `5.59 ms` | `11.458 ms` |
 
-| Bench | 100 | 500 | 1k | 2k | 5k | 10k |
-|----------|------|-----------|-------------|----|---|---|
-| root Keccak256 hash | `113.63 µs` | `557.49 µs` | `1.1775 ms` | `2.3716 ms` | `5.8113 ms` | `11.737 ms` |
+Gets | Inserts
+:----:|:---:
+<img src="plots/bench-gets.svg?raw=true" width="100%"> | <img src="plots/bench-inserts.svg?raw=true" width="100%">
 
 ## Profiling
 
@@ -115,6 +115,8 @@ You can profile some example programs and generate plots using the following com
 ```
 make profile
 ```
+
+<img src="plots/profile-logscale.svg?raw=true" width="100%">
 
 ## 🛠 Contributing
 
