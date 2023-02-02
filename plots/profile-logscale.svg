@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"  standalone="no"?>
+<?xml version="1.0" encoding="windows-1252"  standalone="no"?>
 <svg 
  width="600" height="480"
  viewBox="0 0 600 480"
@@ -125,7 +125,7 @@
 		M538.30,422.40 L538.30,417.90 M538.30,54.01 L538.30,58.51 M549.32,422.40 L549.32,417.90 M549.32,54.01 L549.32,58.51
 		M558.87,422.40 L558.87,417.90 M558.87,54.01 L558.87,58.51 M567.29,422.40 L567.29,417.90 M567.29,54.01 L567.29,58.51
 		M574.82,422.40 L574.82,413.40 M574.82,54.01 L574.82,63.01  '/>	<g transform="translate(574.82,444.30)" stroke="none" fill="black" font-family="Arial" font-size="12.00"  text-anchor="middle">
-		<text><tspan font-family="Arial" > 1x10</tspan><tspan font-family="Arial"  font-size="9.6" dy="-6.00px">6</tspan><tspan font-size="12.0" dy="6.00"></tspan></text>
+		<text><tspan font-family="Arial" > 1×10</tspan><tspan font-family="Arial"  font-size="9.6" dy="-6.00px">6</tspan><tspan font-size="12.0" dy="6.00"></tspan></text>
 	</g>
 </g>
 <g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
