@@ -8,7 +8,7 @@ set ylabel "Time in ns"
 set terminal svg enhanced background rgb 'white'
 set object rectangle from screen 0,0 to screen 1,1 behind fillcolor rgb 'white' fillstyle solid noborder
 set logscale xy
-set xrange [1000:1000000]
+set xrange [1000:100000000]
 
 set title "Benchmark Get"
 set output "bench-gets.svg"
