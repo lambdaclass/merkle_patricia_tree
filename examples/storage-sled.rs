@@ -127,7 +127,6 @@ fn main() -> Result<()> {
         rng.fill_bytes(&mut value);
         tree.insert(key, value)?;
     }
-    
     println!("root hash is {:02x?}", tree.compute_hash());
 
     Ok(())

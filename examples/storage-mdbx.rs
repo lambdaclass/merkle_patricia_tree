@@ -65,7 +65,6 @@ where
     H: Digest,
 {
     pub fn new<T: AsRef<Path>>(storage_path: T) -> Result<Self> {
-
         let db = Database::new()
             .set_geometry(Geometry {
                 size: Some(0..1024 * 1024 * 64),
