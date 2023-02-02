@@ -13,7 +13,7 @@ public class Bench
     private List<byte[]> keys;
     private int index = 0;
 
-    [Params(1000, 10_000, 100_000, 1_000_000)]
+    [Params(1000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000)]
     public int N;
 
     public Bench()
@@ -56,7 +56,7 @@ public class BenchInsert
     private List<byte[]> newKeys;
     private int index = 0;
 
-    [Params(1000, 10_000, 100_000, 1_000_000)]
+    [Params(1000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000)]
     public int N;
 
     public BenchInsert()
