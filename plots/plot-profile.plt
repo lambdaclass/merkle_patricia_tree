@@ -6,7 +6,7 @@ set title "Patricia Merkle Tree Root Hash Memory Usage"
 set xlabel "Nodes Inserted"
 set ylabel "Memory Usage"
 set format y '%.0s%cB'
-set xrange [1000:1000000]
+set xrange [25:1000000]
 set terminal svg enhanced background rgb 'white'
 set object rectangle from screen 0,0 to screen 1,1 behind fillcolor rgb 'white' fillstyle solid noborder
 

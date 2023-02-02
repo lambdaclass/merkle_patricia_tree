@@ -99,11 +99,11 @@ On a AMD Ryzen 9 5950x 3.4 Ghz with 128 Gb RAM using `Keccak256` as the hash fun
 | Bench | 1k | 10k | 100k | 1m | 10m | 100m |
 |----------|------|-----------|-------------|----|---|---|
 | lambda's get() | `38.287 ns` | `58.692 ns` | `118.90 ns` | `266.56 ns` | `365.52 ns` | `528.04 ns` |
-| geth get() | `110.7 ns` | `139.6 ns` | `247.6 ns` | `484.5 ns` |
-| paprika get() | `48.14 ns` | `57.97 ns` | `77.95 ns` | `192.25 ns` |
+| geth get() | `110.7 ns` | `139.6 ns` | `247.6 ns` | `484.5 ns` | `1286 ns` | `timeout` |
+| paprika get() | `48.14 ns` | `57.97 ns` | `77.95 ns` | `192.25 ns` | `244.59 ns` | `timeout (memory)` |
 | lambda's insert() | `327.44 ns` | `407.50 ns` | `778.76 ns` | `1.6858 µs` | `4.6706 µs` | `4.9003 µs` |
-| geth insert() | `536.3 ns` | `820.3 ns` | `1.624 µs` | `2.649 µs` |
-| paprika insert() | `2.251 ns` | `1.964 ns` | `3.650 µs` | `5.391 µs` |
+| geth insert() | `536.3 ns` | `820.3 ns` | `1.624 µs` | `2.649 µs` | `6.522 µs` | `timeout` |
+| paprika insert() | `2.251 ns` | `1.964 ns` | `3.650 µs` | `5.391 µs` | `5.270 us` | `timeout (memory)` |
 
 | Bench | 100 | 500 | 1k | 2k | 5k | 10k |
 |----------|------|-----------|-------------|----|---|---|
@@ -151,7 +151,7 @@ If you have any suggestions for how to improve the project, please feel free to 
 
 ## 📚 Documentation
 
-### What is a patricia merke tree
+### What is a Patricia Merke Tree
 
 PATRICIA is an acronym which means:
 
