@@ -20,6 +20,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         .bench_function("10k", bench_get::<10_000>())
         .bench_function("100k", bench_get::<100_000>())
         .bench_function("1M", bench_get::<1_000_000>())
+        .sample_size(10)
         .bench_function("10M", bench_get::<10_000_000>())
         .bench_function("100M", bench_get::<100_000_000>());
 
@@ -28,6 +29,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         .bench_function("10k", bench_insert::<10_000>())
         .bench_function("100k", bench_insert::<100_000>())
         .bench_function("1M", bench_insert::<1_000_000>())
+        .sample_size(10)
         .bench_function("10M", bench_insert::<10_000_000>())
         .bench_function("100M", bench_insert::<100_000_000>());
 }
