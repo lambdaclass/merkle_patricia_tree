@@ -122,6 +122,63 @@ where
         (self.into(), insert_action)
     }
 
+    pub fn remove(
+        mut self,
+        nodes: &mut NodesStorage<P, V, H>,
+        values: &mut ValuesStorage<P, V>,
+        mut path: NibbleSlice,
+    ) -> (Option<Node<P, V, H>>, Option<V>) {
+        // Possible flow paths:
+        //   branch { 2 choices } -> leaf/extension { ... }
+        //   branch { 3+ choices } -> branch { ... }
+        //   branch { 1 choice } with value -> leaf { ... }
+        //   branch { 1 choice } with value -> leaf/extension { ... }
+        //   branch { 2+ choices } with value -> branch { ... }
+
+        let value = match path.next() {
+            Some(choice_index) => self.choices[choice_index as usize].is_valid().then(|| {
+                let (_, value) = values
+                    .try_remove(*self.choices[choice_index as usize])
+                    .expect("inconsistent internal tree structure");
+
+                self.choices[choice_index as usize] = Default::default();
+                value
+            }),
+            None => self.value_ref.is_valid().then(|| {
+                let (_, value) = values
+                    .try_remove(*self.value_ref)
+                    .expect("inconsistent internal tree structure");
+
+                self.value_ref = Default::default();
+                value
+            }),
+        };
+
+        // An `Err(_)` means more than one choice. `Ok(Some(_))` and `Ok(None)` mean a single and no
+        // choices respectively.
+        let choice_count = self.choices.iter().try_fold(None, |acc, x| {
+            Ok(match (acc, x.is_valid()) {
+                (None, true) => Some(x),
+                (None, false) => None,
+                (Some(_), true) => return Err(()),
+                (Some(x), false) => Some(x),
+            })
+        });
+        let new_node = match (choice_count, self.value_ref.is_valid()) {
+            (Ok(Some(_)), true) => Some(self.into()),
+            (Ok(None), true) => Some(LeafNode::new(self.value_ref).into()),
+            (Ok(Some(x)), false) => Some(
+                nodes
+                    .try_remove(**x)
+                    .expect("inconsistent internal tree structure"),
+            ),
+            (Ok(None), false) => unreachable!(),
+            (Err(_), _) => Some(self.into()),
+        };
+
+        (new_node, value)
+    }
+
     pub fn compute_hash(
         &self,
         nodes: &NodesStorage<P, V, H>,
@@ -344,6 +401,90 @@ mod test {
 
         // TODO: Check node and children.
         assert_eq!(insert_action, InsertAction::InsertSelf);
+    }
+
+    #[test]
+    fn remove_choice_into_inner() {
+        let (mut nodes, mut values) = pmt_state!(Vec<u8>);
+
+        let node = pmt_node! { @(nodes, values)
+            branch {
+                0 => leaf { vec![0x00] => vec![0x00] },
+                1 => leaf { vec![0x10] => vec![0x10] },
+            }
+        };
+
+        let (node, value) = node.remove(&mut nodes, &mut values, NibbleSlice::new(&[0x00]));
+
+        assert!(matches!(node, Some(Node::Leaf(_))));
+        assert_eq!(value, Some(vec![0x00]));
+    }
+
+    #[test]
+    fn remove_choice() {
+        let (mut nodes, mut values) = pmt_state!(Vec<u8>);
+
+        let node = pmt_node! { @(nodes, values)
+            branch {
+                0 => leaf { vec![0x00] => vec![0x00] },
+                1 => leaf { vec![0x10] => vec![0x10] },
+                2 => leaf { vec![0x10] => vec![0x10] },
+            }
+        };
+
+        let (node, value) = node.remove(&mut nodes, &mut values, NibbleSlice::new(&[0x00]));
+
+        assert!(matches!(node, Some(Node::Branch(_))));
+        assert_eq!(value, Some(vec![0x00]));
+    }
+
+    #[test]
+    fn remove_choice_into_value() {
+        let (mut nodes, mut values) = pmt_state!(Vec<u8>);
+
+        let node = pmt_node! { @(nodes, values)
+            branch {
+                0 => leaf { vec![0x00] => vec![0x00] },
+            } with_leaf { vec![] => vec![0xFF] }
+        };
+
+        let (node, value) = node.remove(&mut nodes, &mut values, NibbleSlice::new(&[0x00]));
+
+        assert!(matches!(node, Some(Node::Leaf(_))));
+        assert_eq!(value, Some(vec![0x00]));
+    }
+
+    #[test]
+    fn remove_value_into_inner() {
+        let (mut nodes, mut values) = pmt_state!(Vec<u8>);
+
+        let node = pmt_node! { @(nodes, values)
+            branch {
+                0 => leaf { vec![0x00] => vec![0x00] },
+            } with_leaf { vec![] => vec![0xFF] }
+        };
+
+        let (node, value) = node.remove(&mut nodes, &mut values, NibbleSlice::new(&[]));
+
+        assert!(matches!(node, Some(Node::Leaf(_))));
+        assert_eq!(value, Some(vec![0xFF]));
+    }
+
+    #[test]
+    fn remove_value() {
+        let (mut nodes, mut values) = pmt_state!(Vec<u8>);
+
+        let node = pmt_node! { @(nodes, values)
+            branch {
+                0 => leaf { vec![0x00] => vec![0x00] },
+                1 => leaf { vec![0x10] => vec![0x10] },
+            } with_leaf { vec![] => vec![0xFF] }
+        };
+
+        let (node, value) = node.remove(&mut nodes, &mut values, NibbleSlice::new(&[]));
+
+        assert!(matches!(node, Some(Node::Branch(_))));
+        assert_eq!(value, Some(vec![0xFF]));
     }
 
     #[test]
