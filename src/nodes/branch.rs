@@ -122,6 +122,8 @@ where
         (self.into(), insert_action)
     }
 
+    // TODO: When returning the children, what happens with an extension's prefix or a branch's
+    //   nibble alignment?
     pub fn remove(
         mut self,
         nodes: &mut NodesStorage<P, V, H>,
@@ -136,14 +138,21 @@ where
         //   branch { 2+ choices } with value -> branch { ... }
 
         let value = match path.next() {
-            Some(choice_index) => self.choices[choice_index as usize].is_valid().then(|| {
-                let (_, value) = values
-                    .try_remove(*self.choices[choice_index as usize])
-                    .expect("inconsistent internal tree structure");
+            Some(choice_index) => self.choices[choice_index as usize]
+                .is_valid()
+                .then(|| {
+                    let child_node = nodes
+                        .try_remove(*self.choices[choice_index as usize])
+                        .expect("inconsistent internal tree structure");
 
-                self.choices[choice_index as usize] = Default::default();
-                value
-            }),
+                    let (child_node, old_value) = child_node.remove(nodes, values, path);
+                    self.choices[choice_index as usize] = child_node
+                        .map(|x| NodeRef::new(nodes.insert(x)))
+                        .unwrap_or_default();
+
+                    old_value
+                })
+                .flatten(),
             None => self.value_ref.is_valid().then(|| {
                 let (_, value) = values
                     .try_remove(*self.value_ref)

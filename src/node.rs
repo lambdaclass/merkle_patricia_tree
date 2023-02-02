@@ -56,6 +56,19 @@ where
         }
     }
 
+    pub(crate) fn remove(
+        self,
+        nodes: &mut NodesStorage<P, V, H>,
+        values: &mut ValuesStorage<P, V>,
+        path: NibbleSlice,
+    ) -> (Option<Self>, Option<V>) {
+        match self {
+            Node::Branch(branch_node) => branch_node.remove(nodes, values, path),
+            Node::Extension(extension_node) => extension_node.remove(nodes, values, path),
+            Node::Leaf(leaf_node) => leaf_node.remove(nodes, values, path),
+        }
+    }
+
     pub fn compute_hash(
         &self,
         nodes: &NodesStorage<P, V, H>,
