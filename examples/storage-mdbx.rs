@@ -141,7 +141,6 @@ fn main() -> Result<()> {
     let n: usize = n.parse().expect("valid number");
 
     let mut rng = StdRng::seed_from_u64(1234);
-    //let mut rng = thread_rng();
     let mut key = [0u8; 32];
     let mut value = [0u8; 32];
 
