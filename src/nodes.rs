@@ -33,9 +33,10 @@ macro_rules! pmt_node {
         $crate::nodes::BranchNode::<Vec<u8>, _, sha3::Keccak256>::new({
             let mut choices = [$crate::storage::NodeRef::default(); 16];
             $(
-                let child_node = $nodes.insert(pmt_node! { @($nodes, $values)
+                let child_node = pmt_node! { @($nodes, $values)
                     $child_type { $( $child_tokens )* }
-                }.into());
+                }.into();
+                let child_node = $nodes.insert(child_node);
                 choices[$choice as usize] = $crate::storage::NodeRef::new(child_node);
             )*
             choices

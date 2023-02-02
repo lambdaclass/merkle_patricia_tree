@@ -322,6 +322,21 @@ impl NibbleVec {
         }
     }
 
+    pub fn from_single(nibble: Nibble, is_right_half: bool) -> Self {
+        Self {
+            data: SmallVec::from_elem(
+                if is_right_half {
+                    nibble as u8
+                } else {
+                    (nibble as u8) << 4
+                },
+                1,
+            ),
+            first_is_half: is_right_half,
+            last_is_half: !is_right_half,
+        }
+    }
+
     pub fn is_empty(&self) -> bool {
         self.data.is_empty()
     }
@@ -375,6 +390,34 @@ impl NibbleVec {
         right_vec.normalize();
 
         (left_vec, value, right_vec)
+    }
+
+    pub fn prepend(&mut self, nibble: Nibble) {
+        if self.first_is_half {
+            self.data[0] = (self.data[0] & 0x0F) | ((nibble as u8) << 4);
+        } else {
+            self.data.insert(0, nibble as u8);
+        }
+        self.first_is_half = !self.first_is_half;
+    }
+
+    pub fn extend(&mut self, other: &Self) {
+        // Ensure alignment.
+        assert_eq!(self.last_is_half, other.first_is_half);
+
+        // Copy half-byte (if misaligned).
+        if self.last_is_half {
+            let last = self.data.last_mut().unwrap();
+            *last = (*last & 0xF0) | (other.data[0] & 0x0F);
+        }
+        self.last_is_half = other.last_is_half;
+
+        // Extend.
+        self.data.extend(if other.first_is_half {
+            other.data[1..].iter().copied()
+        } else {
+            other.data.iter().copied()
+        });
     }
 
     pub(crate) fn normalize(&mut self) {

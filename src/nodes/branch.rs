@@ -1,7 +1,7 @@
-use super::LeafNode;
+use super::{ExtensionNode, LeafNode};
 use crate::{
     hashing::{NodeHash, NodeHashRef, NodeHasher},
-    nibble::NibbleSlice,
+    nibble::{Nibble, NibbleSlice, NibbleVec},
     node::{InsertAction, Node},
     Encode, NodeRef, NodesStorage, ValueRef, ValuesStorage,
 };
@@ -137,6 +137,7 @@ where
         //   branch { 1 choice } with value -> leaf/extension { ... }
         //   branch { 2+ choices } with value -> branch { ... }
 
+        let path_offset = path.offset();
         let value = match path.next() {
             Some(choice_index) => self.choices[choice_index as usize]
                 .is_valid()
@@ -165,24 +166,59 @@ where
 
         // An `Err(_)` means more than one choice. `Ok(Some(_))` and `Ok(None)` mean a single and no
         // choices respectively.
-        let choice_count = self.choices.iter().try_fold(None, |acc, x| {
-            Ok(match (acc, x.is_valid()) {
-                (None, true) => Some(x),
-                (None, false) => None,
-                (Some(_), true) => return Err(()),
-                (Some(x), false) => Some(x),
-            })
-        });
-        let new_node = match (choice_count, self.value_ref.is_valid()) {
-            (Ok(Some(_)), true) => Some(self.into()),
-            (Ok(None), true) => Some(LeafNode::new(self.value_ref).into()),
-            (Ok(Some(x)), false) => Some(
+        let choice_count = self
+            .choices
+            .iter_mut()
+            .enumerate()
+            .try_fold(None, |acc, (i, x)| {
+                Ok(match (acc, x.is_valid()) {
+                    (None, true) => Some((i, x)),
+                    (None, false) => None,
+                    (Some(_), true) => return Err(()),
+                    (Some((i, x)), false) => Some((i, x)),
+                })
+            });
+
+        let child_ref = match choice_count {
+            Ok(Some((choice_index, child_ref))) => {
+                let choice_index = Nibble::try_from(choice_index as u8).unwrap();
+                let child_node = nodes
+                    .get_mut(**child_ref)
+                    .expect("inconsistent internal tree structure");
+
+                match child_node {
+                    Node::Branch(_) => {
+                        *child_ref = NodeRef::new(
+                            nodes.insert(
+                                ExtensionNode::new(
+                                    NibbleVec::from_single(choice_index, path_offset % 2 != 0),
+                                    *child_ref,
+                                )
+                                .into(),
+                            ),
+                        );
+                    }
+                    Node::Extension(extension_node) => {
+                        extension_node.prefix.prepend(choice_index);
+                        // *child_ref = NodeRef::new(nodes.insert(extension_node.into()));
+                    }
+                    _ => {}
+                }
+
+                Some(child_ref)
+            }
+            _ => None,
+        };
+
+        let new_node = match (child_ref, self.value_ref.is_valid()) {
+            (Some(_), true) => Some(self.into()),
+            (None, true) => Some(LeafNode::new(self.value_ref).into()),
+            (Some(x), false) => Some(
                 nodes
                     .try_remove(**x)
                     .expect("inconsistent internal tree structure"),
             ),
-            (Ok(None), false) => unreachable!(),
-            (Err(_), _) => Some(self.into()),
+            (None, false) => Some(self.into()),
         };
 
         (new_node, value)
