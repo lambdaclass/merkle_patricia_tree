@@ -71,14 +71,21 @@ where
 
     /// Retrieve a value from the tree given its path.
     pub fn get(&self, path: &P) -> Option<&V> {
-        self.nodes.get(*self.root_ref).and_then(|root_node| {
-            let encoded_path = path.encode();
-            root_node.get(
-                &self.nodes,
-                &self.values,
-                NibbleSlice::new(encoded_path.as_ref()),
-            )
-        })
+        if !self.root_ref.is_valid() {
+            return None;
+        }
+
+        let root_node = self
+            .nodes
+            .get(*self.root_ref)
+            .expect("inconsistent internal tree structure");
+
+        let encoded_path = path.encode();
+        root_node.get(
+            &self.nodes,
+            &self.values,
+            NibbleSlice::new(encoded_path.as_ref()),
+        )
     }
 
     /// Insert a value into the tree.
@@ -134,8 +141,26 @@ where
     }
 
     /// Remove a value from the tree.
-    pub fn remove(&mut self, _path: P) -> Option<V> {
-        todo!()
+    pub fn remove(&mut self, path: P) -> Option<V> {
+        if !self.root_ref.is_valid() {
+            return None;
+        }
+
+        let root_node = self
+            .nodes
+            .try_remove(*self.root_ref)
+            .expect("inconsistent internal tree structure");
+        let (root_node, old_value) = root_node.remove(
+            &mut self.nodes,
+            &mut self.values,
+            NibbleSlice::new(path.encode().as_ref()),
+        );
+        self.root_ref = match root_node {
+            Some(root_node) => NodeRef::new(self.nodes.insert(root_node)),
+            None => Default::default(),
+        };
+
+        old_value
     }
 
     /// Return the root hash of the tree (or recompute if needed).
