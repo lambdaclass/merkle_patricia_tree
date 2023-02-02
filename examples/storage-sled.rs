@@ -3,6 +3,7 @@
 use digest::{Digest, Output};
 use error::Result;
 use patricia_merkle_tree::{Encode, PatriciaMerkleTree};
+use rand::{rngs::StdRng, thread_rng, RngCore, SeedableRng};
 use serde::{Deserialize, Serialize};
 use sha3::Keccak256;
 use sled::Db;
@@ -111,19 +112,20 @@ where
 
 fn main() -> Result<()> {
     let temp_dir = tempdir()?;
-    let mut tree = SledStorageTree::<Vec<_>, Vec<_>, Keccak256>::new(temp_dir.path())?;
+    let mut tree = SledStorageTree::<[u8; 32], [u8; 32], Keccak256>::new(temp_dir.path())?;
 
-    let (path_a, node_a) = (vec![0x12], vec![1]);
-    let (path_b, node_b) = (vec![0x34], vec![2]);
-    let (path_c, node_c) = (vec![0x56], vec![3]);
+    let n = std::env::args().nth(1).expect("missing number of nodes");
+    let n: usize = n.parse().expect("valid number");
 
-    tree.insert(path_a, node_a)?;
-    tree.insert(path_b, node_b)?;
-    tree.insert(path_c, node_c)?;
+    let mut rng = StdRng::seed_from_u64(1234);
+    let mut key = [0u8; 32];
+    let mut value = [0u8; 32];
 
-    assert_eq!(tree.get(&vec![0x12])?, Some(vec![1]));
-    assert_eq!(tree.get(&vec![0x34])?, Some(vec![2]));
-    assert_eq!(tree.get(&vec![0x56])?, Some(vec![3]));
+    for _ in 0..n {
+        rng.fill_bytes(&mut key);
+        rng.fill_bytes(&mut value);
+        tree.insert(key, value)?;
+    }
     println!("root hash is {:02x?}", tree.compute_hash());
 
     Ok(())

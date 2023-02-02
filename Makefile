@@ -18,8 +18,20 @@ test:
 bench:
 	cargo bench
 
+# External benches dependencies: go, dotnet-sdk
 ext-bench:
+	echo "Benchmarking go-ethereum implementation:"
 	cd ./external-benches/geth/; GOMAXPROCS=1 go test -bench=.
+	echo "Benchmarking Paprika implementation (CSharp)"
+	cd ./external-benches/paprika-bench/; dotnet run -c Release
+
+ext-bench-prepare:
+	cd ./external-benches/paprika-bench/
+	dotnet nuget add source -n merkle_patricia_tree $(pwd)/nuget-feed
+
+storage-bench:
+	hyperfine --prepare 'cargo b --release --all-targets' -w 2 -L nodes 100,1000,10000,100000 'cargo r --release --example storage-sled {nodes}'
+	hyperfine --prepare 'cargo b --release --all-targets' -w 2 -L nodes 100,1000,10000,100000 'cargo r --release --example storage-mdbx {nodes}'
 
 profile:
 	 cargo build --examples --profile=release-with-debug && \
