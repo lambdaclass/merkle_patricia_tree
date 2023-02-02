@@ -130,7 +130,6 @@ If you have any suggestions for how to improve the project, please feel free to 
 4. Push to the Branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-
 ## 📚 Documentation
 
 ### What is a patricia merke tree
