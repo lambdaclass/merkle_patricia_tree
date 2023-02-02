@@ -3,7 +3,7 @@
 use digest::{Digest, Output};
 use error::Result;
 use patricia_merkle_tree::{Encode, PatriciaMerkleTree};
-use rand::{thread_rng, RngCore, rngs::StdRng, SeedableRng};
+use rand::{rngs::StdRng, thread_rng, RngCore, SeedableRng};
 use serde::{Deserialize, Serialize};
 use sha3::Keccak256;
 use sled::Db;

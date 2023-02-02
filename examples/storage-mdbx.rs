@@ -1,8 +1,8 @@
 use self::error::Result;
 use digest::{Digest, Output};
-use libmdbx::{Database, NoWriteMap, WriteFlags, Geometry};
+use libmdbx::{Database, Geometry, NoWriteMap, WriteFlags};
 use patricia_merkle_tree::{Encode, PatriciaMerkleTree};
-use rand::{rngs::StdRng, SeedableRng, RngCore};
+use rand::{rngs::StdRng, RngCore, SeedableRng};
 use serde::{Deserialize, Serialize};
 use sha3::Keccak256;
 use std::{borrow::Cow, marker::PhantomData, path::Path, rc::Rc};
@@ -150,7 +150,7 @@ fn main() -> Result<()> {
         rng.fill_bytes(&mut value);
         tree.insert(key, value)?;
     }
-    
+
     println!("root hash is {:02x?}", tree.compute_hash());
 
     Ok(())
