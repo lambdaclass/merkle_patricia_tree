@@ -5,7 +5,7 @@ set -e
 
 cargo build --examples --profile=release-with-debug
 rm -f plots/data.dat 
-rm -f profile-tmp
+rm -rf profile-tmp
 mkdir profile-tmp
 
 for i in {1000..1000000..5000}; do
