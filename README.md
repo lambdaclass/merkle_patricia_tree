@@ -151,7 +151,7 @@ If you have any suggestions for how to improve the project, please feel free to 
 
 ## 📚 Documentation
 
-### What is a Patricia Merke Tree
+### What is a Patricia Merkle Tree
 
 PATRICIA is an acronym which means:
 
