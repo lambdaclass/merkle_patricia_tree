@@ -154,6 +154,10 @@ where
                 .expect("inconsistent internal tree structure");
 
             let (child_node, old_value) = child_node.remove(nodes, values, path);
+            if old_value.is_some() {
+                self.hash.mark_as_dirty();
+            }
+
             let node = child_node.map(|x| match x {
                 Node::Branch(branch_node) => {
                     self.child_ref = NodeRef::new(nodes.insert(branch_node.into()));

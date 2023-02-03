@@ -210,6 +210,10 @@ where
             _ => None,
         };
 
+        if value.is_some() {
+            self.hash.mark_as_dirty();
+        }
+
         let new_node = match (child_ref, self.value_ref.is_valid()) {
             (Some(_), true) => Some(self.into()),
             (None, true) => Some(LeafNode::new(self.value_ref).into()),
