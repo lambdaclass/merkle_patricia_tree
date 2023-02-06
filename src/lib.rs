@@ -1,6 +1,5 @@
 //! # Patricia Merkle Tree
 
-#![feature(iter_intersperse)]
 #![deny(warnings)]
 
 pub use self::codec::Encode;
@@ -13,7 +12,10 @@ use self::{
 use digest::{Digest, Output};
 use hashing::NodeHashRef;
 use slab::Slab;
-use std::{mem::{replace, size_of}, fmt::Debug};
+use std::{
+    fmt::Debug,
+    mem::{replace, size_of},
+};
 
 mod codec;
 #[cfg(feature = "tree-dump")]
@@ -186,7 +188,6 @@ where
     where
         P: 'a,
         V: 'a,
-        H: Debug,
     {
         util::compute_hash_from_sorted_iter::<P, V, H>(iter)
     }
