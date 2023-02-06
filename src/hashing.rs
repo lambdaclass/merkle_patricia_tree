@@ -128,7 +128,7 @@ where
     }
 
     pub fn finalize(mut self) -> NodeHashRef<'a, H> {
-        let x = match self.hasher {
+        match self.hasher {
             Some(_) => {
                 {
                     let mut hash_ref = self.parent.hash_ref.borrow_mut();
@@ -141,9 +141,7 @@ where
             None => NodeHashRef::Inline(Ref::map(self.parent.hash_ref.borrow(), |x| {
                 &x[..self.parent.length.get()]
             })),
-        };
-        println!("######## finalize: {:02x?} {}", x.as_ref(), matches!(x, NodeHashRef::Hashed(_)));
-        x
+        }
     }
 
     pub fn path_len(value_len: usize) -> usize {
@@ -231,7 +229,6 @@ where
     }
 
     pub fn write_raw(&mut self, value: &[u8]) {
-        println!("######## {value:02x?}");
         let mut length = self.parent.length.get();
         let mut hash_ref = self.parent.hash_ref.borrow_mut();
 

@@ -1,5 +1,6 @@
 //! # Patricia Merkle Tree
 
+#![feature(iter_intersperse)]
 #![deny(warnings)]
 
 pub use self::codec::Encode;
