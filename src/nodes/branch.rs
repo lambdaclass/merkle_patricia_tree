@@ -1,6 +1,6 @@
 use super::LeafNode;
 use crate::{
-    hashing::{NodeHash, NodeHashRef, NodeHasher, DelimitedHash},
+    hashing::{DelimitedHash, NodeHash, NodeHashRef, NodeHasher},
     nibble::NibbleSlice,
     node::{InsertAction, Node},
     Encode, NodeRef, NodesStorage, ValueRef, ValuesStorage,
@@ -256,7 +256,8 @@ where
         .sum();
 
     if let Some(value) = value {
-        children_len += NodeHasher::<H>::bytes_len(value.len(), value.first().copied().unwrap_or_default());
+        children_len +=
+            NodeHasher::<H>::bytes_len(value.len(), value.first().copied().unwrap_or_default());
     } else {
         children_len += 1;
     }
