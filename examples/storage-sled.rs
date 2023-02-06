@@ -1,9 +1,8 @@
 //! Example of a Storage implementation using Sled as the database and bincode to encode the saved values.
-
 use digest::{Digest, Output};
 use error::Result;
 use patricia_merkle_tree::{Encode, PatriciaMerkleTree};
-use rand::{rngs::StdRng, thread_rng, RngCore, SeedableRng};
+use rand::{rngs::StdRng, RngCore, SeedableRng};
 use serde::{Deserialize, Serialize};
 use sha3::Keccak256;
 use sled::Db;
@@ -69,6 +68,7 @@ where
         })
     }
 
+    #[allow(dead_code)]
     pub fn get(&self, path: &P) -> Result<Option<V>> {
         self.tree
             .get(path)

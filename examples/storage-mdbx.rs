@@ -78,6 +78,7 @@ where
         })
     }
 
+    #[allow(dead_code)]
     pub fn get(&self, path: &P) -> Result<Option<V>> {
         self.tree
             .get(path)

@@ -216,7 +216,7 @@ impl<'a> NibblePrefix<'a> {
         let count = self
             .0
             .iter()
-            .take(self.len() - if self.1 { 1 } else { 0 })
+            .take(self.len() - self.1 as usize)
             .zip(other.iter())
             .take_while(|(a, b)| a == b)
             .count();
