@@ -65,18 +65,18 @@ pub struct NibbleSlice<'a> {
 }
 
 impl<'a> NibbleSlice<'a> {
-    pub fn new(inner: &'a [u8]) -> Self {
+    pub const fn new(inner: &'a [u8]) -> Self {
         Self {
             data: inner,
             offset: 0,
         }
     }
 
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         2 * self.data.len() - self.offset
     }
 
-    pub fn offset(&self) -> usize {
+    pub const fn offset(&self) -> usize {
         self.offset
     }
 
@@ -275,10 +275,7 @@ impl<'a> Iterator for NibbleSlice<'a> {
             };
 
             self.offset += 1;
-            match Nibble::try_from(byte) {
-                Ok(x) => x,
-                Err(_) => unreachable!(),
-            }
+            Nibble::try_from(byte).map_or_else(|_| unreachable!(), |x| x)
         })
     }
 }
@@ -330,7 +327,7 @@ impl NibbleVec {
         2 * self.data.len() - self.first_is_half as usize - self.last_is_half as usize
     }
 
-    pub fn iter(&self) -> NibbleVecIter {
+    pub const fn iter(&self) -> NibbleVecIter {
         NibbleVecIter {
             inner: self,
             pos: self.first_is_half as usize,
@@ -357,10 +354,7 @@ impl NibbleVec {
         } else {
             self.data[offset >> 1] >> 4
         };
-        let value = match Nibble::try_from(value) {
-            Ok(x) => x,
-            Err(_) => unreachable!(),
-        };
+        let value = Nibble::try_from(value).map_or_else(|_| unreachable!(), |x| x);
 
         let offset = (index + 1 + self.first_is_half as usize) >> 1;
         let mut right_vec = NibbleVec {
@@ -412,10 +406,7 @@ impl<'a> Iterator for NibbleVecIter<'a> {
             };
 
             self.pos += 1;
-            match Nibble::try_from(byte) {
-                Ok(x) => Some(x),
-                Err(_) => unreachable!(),
-            }
+            Nibble::try_from(byte).map_or_else(|_| unreachable!(), Some)
         })
     }
 }

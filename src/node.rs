@@ -119,7 +119,7 @@ pub(crate) enum InsertAction {
 
 impl InsertAction {
     /// Replace `Self::InsertSelf` with `Self::Insert(node_ref)`.
-    pub fn quantize_self(self, node_ref: NodeRef) -> Self {
+    pub const fn quantize_self(self, node_ref: NodeRef) -> Self {
         match self {
             Self::InsertSelf => Self::Insert(node_ref),
             _ => self,
