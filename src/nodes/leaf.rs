@@ -142,12 +142,12 @@ where
         }
     }
 
-    pub fn compute_hash<'a>(
-        &'a self,
+    pub fn compute_hash(
+        &self,
         _nodes: &NodesStorage<P, V, H>,
         values: &ValuesStorage<P, V>,
         path_offset: usize,
-    ) -> NodeHashRef<'a, H> {
+    ) -> NodeHashRef<H> {
         self.hash.extract_ref().unwrap_or_else(|| {
             let (path, value) = values
                 .get(*self.value_ref)

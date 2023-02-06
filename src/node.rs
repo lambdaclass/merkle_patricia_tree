@@ -56,12 +56,12 @@ where
         }
     }
 
-    pub fn compute_hash<'a>(
-        &'a self,
+    pub fn compute_hash(
+        &self,
         nodes: &NodesStorage<P, V, H>,
         values: &ValuesStorage<P, V>,
         path_offset: usize,
-    ) -> NodeHashRef<'a, H> {
+    ) -> NodeHashRef<H> {
         match self {
             Node::Branch(branch_node) => branch_node.compute_hash(nodes, values, path_offset),
             Node::Extension(extension_node) => {

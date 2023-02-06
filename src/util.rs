@@ -21,7 +21,6 @@ where
 
     let hash_frame = |frame: &StackFrame<_>, offset_delta: usize| {
         let hash = NodeHash::default();
-        // dbg!((&frame.choices, &frame.value, offset_delta));
         match (&frame.choices, &frame.value) {
             (Some(choices), value) => {
                 if frame.prefix.len() > offset_delta {
@@ -139,7 +138,6 @@ where
         stack.push(StackFrame::new_leaf(path, value));
     }
 
-    println!("## Popping everything from the stack.");
     if stack.is_empty() {
         H::new().chain_update([0x80]).finalize()
     } else {
