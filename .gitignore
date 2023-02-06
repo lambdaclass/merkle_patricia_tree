@@ -41,3 +41,4 @@ Cargo.lock
 dhat.out.*
 data.dat
 *.svg
+!plots/*.svg

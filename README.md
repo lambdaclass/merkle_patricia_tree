@@ -72,6 +72,12 @@ make bench
 
 To run external benches:
 
+
+Run the one-time setup
+```
+make ext-bench-prepare
+```
+
 ```
 make ext-bench
 ```
@@ -90,21 +96,34 @@ Every use case is tested with different tree sizes, ranging from 1k to 1M.
 
 On a AMD Ryzen 9 5950x 3.4 Ghz with 128 Gb RAM using `Keccak256` as the hash function:
 
-| Bench | 1k | 10k | 100k | 1M |
-|----------|------|-----------|-------------|----|
-| get() | `38.287 ns` | `58.692 ns` | `118.90 ns` | `266.56 ns` |
-| geth get() | `110.7 ns` | `139.6 ns` | `247.6 ns` | `484.5 ns` |
-| insert() | `327.44 ns` | `407.50 ns` | `778.76 ns` | `1.6858 µs` |
-| geth insert() | `536.3 ns` | `820.3 ns` | `1.624 µs` | `2.649 µs` |
+| Bench | 1k | 10k | 100k | 1m | 10m | 100m |
+|----------|------|-----------|-------------|----|---|---|
+| lambda's get() | `38.287 ns` | `58.692 ns` | `118.90 ns` | `266.56 ns` | `365.52 ns` | `528.04 ns` |
+| geth get() | `110.7 ns` | `139.6 ns` | `247.6 ns` | `484.5 ns` | `1286 ns` | `timeout` |
+| paprika get() | `48.14 ns` | `57.97 ns` | `77.95 ns` | `192.25 ns` | `244.59 ns` | `timeout (memory)` |
+| lambda's insert() | `327.44 ns` | `407.50 ns` | `778.76 ns` | `1.6858 µs` | `4.6706 µs` | `4.9003 µs` |
+| geth insert() | `536.3 ns` | `820.3 ns` | `1.624 µs` | `2.649 µs` | `6.522 µs` | `timeout` |
+| paprika insert() | `2.251 ns` | `1.964 ns` | `3.650 µs` | `5.391 µs` | `5.270 us` | `timeout (memory)` |
 
 | Bench | 100 | 500 | 1k | 2k | 5k | 10k |
 |----------|------|-----------|-------------|----|---|---|
-| root Keccak256 | `113.63 µs` | `557.49 µs` | `1.1775 ms` | `2.3716 ms` | `5.8113 ms` | `11.737 ms` |
+| lambda's root Keccak256 | `113.63 µs` | `557.49 µs` | `1.1775 ms` | `2.3716 ms` | `5.8113 ms` | `11.737 ms` |
 | geth root Keccak256 | `102.358 µs` | `504.081 µs` | `989.531 µs` | `1.936 ms` | `5.59 ms` | `11.458 ms` |
 
-| Bench | 100 | 500 | 1k | 2k | 5k | 10k |
-|----------|------|-----------|-------------|----|---|---|
-| root Keccak256 hash | `113.63 µs` | `557.49 µs` | `1.1775 ms` | `2.3716 ms` | `5.8113 ms` | `11.737 ms` |
+Gets | Inserts
+:----:|:---:
+<img src="plots/bench-gets.svg?raw=true" width="100%"> | <img src="plots/bench-inserts.svg?raw=true" width="100%">
+
+Requires hyperfine:
+
+```bash
+make storage-bench
+```
+
+| Storage Bench | 100 | 1k | 10k | 1m |
+|----------|------|-----------|-------------|--------|
+| sled insert + hash | `210.4 ms` | `204.6 ms` | `245.1 ms` | `861.3 ms` |
+| libmdx insert + hash | `195.5 ms` | `262.3 ms` | `1.002 s` | `7.93 s` |
 
 ## Profiling
 
@@ -115,6 +134,8 @@ You can profile some example programs and generate plots using the following com
 ```
 make profile
 ```
+
+<img src="plots/profile-logscale.svg?raw=true" width="100%">
 
 ## 🛠 Contributing
 
@@ -128,10 +149,9 @@ If you have any suggestions for how to improve the project, please feel free to 
 4. Push to the Branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-
 ## 📚 Documentation
 
-### What is a patricia merke tree
+### What is a Patricia Merkle Tree
 
 PATRICIA is an acronym which means:
 

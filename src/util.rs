@@ -1,5 +1,3 @@
-#![warn(warnings)]
-
 use crate::{
     hashing::{DelimitedHash, NodeHash},
     nibble::{Nibble, NibbleSlice},

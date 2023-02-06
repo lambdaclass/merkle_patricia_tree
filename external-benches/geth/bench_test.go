@@ -16,11 +16,13 @@ func BenchmarkGet1k(b *testing.B)   { benchGet(b, 1000) }
 func BenchmarkGet10k(b *testing.B)  { benchGet(b, 10000) }
 func BenchmarkGet100k(b *testing.B) { benchGet(b, 100000) }
 func BenchmarkGet1m(b *testing.B)   { benchGet(b, 1000000) }
+func BenchmarkGet10m(b *testing.B)  { benchGet(b, 10000000) }
 
 func BenchmarkInsert1k(b *testing.B)   { benchInsert(b, 1000) }
 func BenchmarkInsert10k(b *testing.B)  { benchInsert(b, 10000) }
 func BenchmarkInsert100k(b *testing.B) { benchInsert(b, 100000) }
 func BenchmarkInsert1m(b *testing.B)   { benchInsert(b, 1000000) }
+func BenchmarkInsert10m(b *testing.B)  { benchInsert(b, 10000000) }
 
 func BenchmarkHash100(b *testing.B) { benchHash(b, 100) }
 func BenchmarkHash500(b *testing.B) { benchHash(b, 500) }
