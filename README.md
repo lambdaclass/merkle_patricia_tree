@@ -136,6 +136,7 @@ make profile
 ```
 
 <img src="plots/profile-logscale.svg?raw=true" width="100%">
+<img src="plots/profile-sorted-logscale.svg?raw=true" width="100%">
 
 ## 🛠 Contributing
 
