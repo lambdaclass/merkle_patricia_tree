@@ -262,10 +262,10 @@
 	<use xlink:href='#gpPt2' transform='translate(303.56,108.01) scale(4.50)' color='rgb( 86, 180, 233)'/>
 </g>
 	</g>
-	<g id="gnuplot_plot_4" ><title>Max Usage Spoted</title>
+	<g id="gnuplot_plot_4" ><title>Max Usage Sorted</title>
 <g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
 	<g transform="translate(273.89,129.91)" stroke="none" fill="black" font-family="Arial" font-size="12.00"  text-anchor="end">
-		<text><tspan font-family="Arial" >Max Usage Spoted</tspan></text>
+		<text><tspan font-family="Arial" >Max Usage Sorted</tspan></text>
 	</g>
 </g>
 <g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">

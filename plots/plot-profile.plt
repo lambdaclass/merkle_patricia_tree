@@ -45,11 +45,11 @@ unset logscale
 plot "data.dat" using 1:2 title 'Total Allocated' with linespoints, \
     "data.dat" using 1:3 title 'Max Usage' with linespoints, \
     "data-sorted.dat" using 1:2 title 'Total Allocated Sorted' with linespoints, \
-    "data-sorted.dat" using 1:3 title 'Max Usage Spoted' with linespoints
+    "data-sorted.dat" using 1:3 title 'Max Usage Sorted' with linespoints
 
 set logscale xy
 set output "profile-both-logscale.svg"
 plot "data.dat" using 1:2 title 'Total Allocated' with linespoints, \
     "data.dat" using 1:3 title 'Max Usage' with linespoints, \
     "data-sorted.dat" using 1:2 title 'Total Allocated Sorted' with linespoints, \
-    "data-sorted.dat" using 1:3 title 'Max Usage Spoted' with linespoints
+    "data-sorted.dat" using 1:3 title 'Max Usage Sorted' with linespoints
