@@ -200,7 +200,6 @@ where
                     }
                     Node::Extension(extension_node) => {
                         extension_node.prefix.prepend(choice_index);
-                        // *child_ref = NodeRef::new(nodes.insert(extension_node.into()));
                     }
                     _ => {}
                 }
