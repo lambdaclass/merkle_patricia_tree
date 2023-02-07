@@ -139,6 +139,8 @@ Normal | From Sorted Iter
 :----:|:---:
 <img src="plots/profile-logscale.svg?raw=true" width="100%"> | <img src="plots/profile-sorted-logscale.svg?raw=true" width="100%">
 
+<img src="plots/profile-both-logscale.svg?raw=true" width="100%">
+
 ## 🛠 Contributing
 
 The open source community is a fantastic place for learning, inspiration, and creation, and this is all thanks to contributions from people like you. Your contributions are **greatly appreciated**.
