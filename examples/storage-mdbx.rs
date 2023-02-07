@@ -138,7 +138,7 @@ mod storage_mdbx {
 }
 
 #[cfg(all(unix))]
-fn main() -> Result<()> {
+fn main() -> storage_mdbx::Result<()> {
     use storage_mdbx::*;
     let temp_dir = tempdir()?;
     let mut tree = MdbxStorageTree::<[u8; 32], [u8; 32], Keccak256>::new(temp_dir.path())?;
