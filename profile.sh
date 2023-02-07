@@ -25,5 +25,6 @@ for i in {2..6}; do
 done
 
 mv data.dat plots/
+mv data-sorted.dat plots/
 cd plots
 gnuplot plot-profile.plt
