@@ -38,3 +38,18 @@ plot "data-sorted.dat" using 1:2 title 'Total Allocated' with linespoints, \
     "data-sorted.dat" using 1:3 title 'Max Usage' with linespoints, \
     "data-sorted.dat" using 1:5 title 'Bytes Read' with linespoints, \
     "data-sorted.dat" using 1:6 title 'Bytes Written' with linespoints
+
+set title "Patricia Merkle Tree Sorted Root Hash Memory Usage"
+set output "profile-both.svg"
+unset logscale
+plot "data.dat" using 1:2 title 'Total Allocated' with linespoints, \
+    "data.dat" using 1:3 title 'Max Usage' with linespoints, \
+    "data-sorted.dat" using 1:2 title 'Total Allocated Sorted' with linespoints, \
+    "data-sorted.dat" using 1:3 title 'Max Usage Spoted' with linespoints
+
+set logscale xy
+set output "profile-both-logscale.svg"
+plot "data.dat" using 1:2 title 'Total Allocated' with linespoints, \
+    "data.dat" using 1:3 title 'Max Usage' with linespoints, \
+    "data-sorted.dat" using 1:2 title 'Total Allocated Sorted' with linespoints, \
+    "data-sorted.dat" using 1:3 title 'Max Usage Spoted' with linespoints
