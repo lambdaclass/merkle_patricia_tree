@@ -155,9 +155,13 @@ pub fn bench_compute_hash_inserts<const N: usize, H: Digest + Clone>() -> impl F
         data.insert(path, value);
     }
 
-    let data: Vec<_> = data.into_iter().collect();
-
     move |b| {
+        let data: Vec<_> = data.clone().into_iter().collect();
+        let data: Vec<_> = data
+            .iter()
+            .map(|x| (x.0.as_slice(), x.1.as_slice()))
+            .collect();
+
         b.iter_custom(|num_iters| {
             let mut delta = Duration::ZERO;
             for _ in 0..num_iters {
@@ -165,7 +169,7 @@ pub fn bench_compute_hash_inserts<const N: usize, H: Digest + Clone>() -> impl F
                 let measure = Instant::now();
                 let mut tree = PatriciaMerkleTree::<_, _, H>::new();
                 for (key, val) in iter {
-                    tree.insert(black_box(key.as_slice()), black_box(val.as_slice()));
+                    tree.insert(black_box(*key), black_box(*val));
                 }
                 black_box(tree.compute_hash());
                 delta += measure.elapsed();
