@@ -26,7 +26,6 @@ cita_trie = "4.0.0"
 criterion = "0.4.0"
 hasher = "0.1.4"
 hex-literal = "0.3.4"
-libmdbx = "0.2.0"
 proptest = "1.0.0"
 rand = "0.8.5"
 serde = { version = "1.0.152", features = ["derive"] }
@@ -36,3 +35,6 @@ sled = "0.34.7"
 tempfile = "3.3.0"
 thiserror = "1.0.38"
 uuid = { version = "1.2.2", features = ["v4"] }
+
+[target.'cfg(unix)'.dev-dependencies]
+libmdbx = "0.2.0"
