@@ -135,8 +135,9 @@ You can profile some example programs and generate plots using the following com
 make profile
 ```
 
-<img src="plots/profile-logscale.svg?raw=true" width="100%">
-<img src="plots/profile-sorted-logscale.svg?raw=true" width="100%">
+Normal | From Sorted Iter
+:----:|:---:
+<img src="plots/profile-logscale.svg?raw=true" width="100%"> | <img src="plots/profile-sorted-logscale.svg?raw=true" width="100%">
 
 ## 🛠 Contributing
 
