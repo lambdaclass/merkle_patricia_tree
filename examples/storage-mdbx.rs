@@ -135,30 +135,33 @@ mod storage_mdbx {
             Ok(storage_key)
         }
     }
+
+    fn run() -> Result<()> {
+        let temp_dir = tempdir()?;
+        let mut tree = MdbxStorageTree::<[u8; 32], [u8; 32], Keccak256>::new(temp_dir.path())?;
+
+        let n = std::env::args().nth(1).expect("missing number of nodes");
+        let n: usize = n.parse().expect("valid number");
+
+        let mut rng = StdRng::seed_from_u64(1234);
+        let mut key = [0u8; 32];
+        let mut value = [0u8; 32];
+
+        for _ in 0..n {
+            rng.fill_bytes(&mut key);
+            rng.fill_bytes(&mut value);
+            tree.insert(key, value)?;
+        }
+
+        println!("root hash is {:02x?}", tree.compute_hash());
+
+        Ok(())
+    }
 }
 
 #[cfg(all(unix))]
-fn main() -> storage_mdbx::Result<()> {
-    use storage_mdbx::*;
-    let temp_dir = tempdir()?;
-    let mut tree = MdbxStorageTree::<[u8; 32], [u8; 32], Keccak256>::new(temp_dir.path())?;
-
-    let n = std::env::args().nth(1).expect("missing number of nodes");
-    let n: usize = n.parse().expect("valid number");
-
-    let mut rng = StdRng::seed_from_u64(1234);
-    let mut key = [0u8; 32];
-    let mut value = [0u8; 32];
-
-    for _ in 0..n {
-        rng.fill_bytes(&mut key);
-        rng.fill_bytes(&mut value);
-        tree.insert(key, value)?;
-    }
-
-    println!("root hash is {:02x?}", tree.compute_hash());
-
-    Ok(())
+fn main() {
+    storage_mdbx::run().unwrap();
 }
 
 #[cfg(not(unix))]
