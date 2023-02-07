@@ -37,7 +37,7 @@ profile:
 	./profile.sh
 
 clean-profile:
-	rm -f data.dat dhat.out.* profile*.svg
+	rm -f dhat.out.* profile*.svg
 
 coverage:
 	cargo tarpaulin
