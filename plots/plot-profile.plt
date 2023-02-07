@@ -39,7 +39,7 @@ plot "data-sorted.dat" using 1:2 title 'Total Allocated' with linespoints, \
     "data-sorted.dat" using 1:5 title 'Bytes Read' with linespoints, \
     "data-sorted.dat" using 1:6 title 'Bytes Written' with linespoints
 
-set title "Patricia Merkle Tree Sorted Root Hash Memory Usage"
+set title "Patricia Merkle Tree Root Hash Memory Usage"
 set output "profile-both.svg"
 unset logscale
 plot "data.dat" using 1:2 title 'Total Allocated' with linespoints, \
