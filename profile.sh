@@ -19,7 +19,7 @@ for i in {2..6}; do
         echo -en "\n${nodes} " >> data-sorted.dat
         valgrind --tool=dhat --dhat-out-file=profile-tmp/dhat.out.n-${nodes} ./target/release-with-debug/examples/calculate-root ${nodes} 2>&1 \
             | rg -A 4 'Total:' | sed -E 's/==\w+== //g' | rg -o ':\s+([0-9,]+)' -r '$1' | tr -d ',' | tr '\n' ' ' >> data.dat
-        valgrind --tool=dhat --dhat-out-file=profile-tmp/dhat.out.n-${nodes} ./target/release-with-debug/examples/calculate-root-sorted ${nodes} 2>&1 \
+        valgrind --tool=dhat --dhat-out-file=profile-tmp/dhat-sorted.out.n-${nodes} ./target/release-with-debug/examples/calculate-root-sorted ${nodes} 2>&1 \
             | rg -A 4 'Total:' | sed -E 's/==\w+== //g' | rg -o ':\s+([0-9,]+)' -r '$1' | tr -d ',' | tr '\n' ' ' >> data-sorted.dat
     done
 done
