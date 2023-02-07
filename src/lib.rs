@@ -179,11 +179,11 @@ where
         tree
     }
 
-    /// Compute the root hash of a tree given a sorted iterator to its items.
+    /// Compute the root hash of a tree given a ascending sorted iterator to its items.
     ///
     /// Panics if the iterator is not sorted.
     pub fn compute_hash_from_sorted_iter<'a>(
-        iter: impl IntoIterator<Item = (&'a P, &'a V)>,
+        iter: impl IntoIterator<Item = &'a (P, V)>,
     ) -> Output<H>
     where
         P: 'a,

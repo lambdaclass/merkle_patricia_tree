@@ -8,7 +8,7 @@ use digest::{Digest, Output};
 use std::{borrow::Cow, cmp::max, fmt::Debug};
 
 pub fn compute_hash_from_sorted_iter<'a, P, V, H>(
-    iter: impl IntoIterator<Item = (&'a P, &'a V)>,
+    iter: impl IntoIterator<Item = &'a (P, V)>,
 ) -> Output<H>
 where
     P: 'a + Encode,
@@ -251,8 +251,7 @@ mod test {
     fn test_empty_tree() {
         const DATA: &[(&[u8], &[u8])] = &[];
 
-        let computed_hash =
-            compute_hash_from_sorted_iter::<_, _, Keccak256>(DATA.iter().map(|(a, b)| (a, b)));
+        let computed_hash = compute_hash_from_sorted_iter::<_, _, Keccak256>(DATA.iter());
         let expected_hash =
             compute_hash_cita_trie(DATA.iter().map(|(a, b)| (a.to_vec(), b.to_vec())).collect());
 
@@ -263,8 +262,7 @@ mod test {
     fn test_leaf_tree() {
         const DATA: &[(&[u8], &[u8])] = &[(b"hello", b"world")];
 
-        let computed_hash =
-            compute_hash_from_sorted_iter::<_, _, Keccak256>(DATA.iter().map(|(a, b)| (a, b)));
+        let computed_hash = compute_hash_from_sorted_iter::<_, _, Keccak256>(DATA.iter());
         let expected_hash =
             compute_hash_cita_trie(DATA.iter().map(|(a, b)| (a.to_vec(), b.to_vec())).collect());
 
@@ -280,8 +278,7 @@ mod test {
             (&[0x30], &[0x30]),
         ];
 
-        let computed_hash =
-            compute_hash_from_sorted_iter::<_, _, Keccak256>(DATA.iter().map(|(a, b)| (a, b)));
+        let computed_hash = compute_hash_from_sorted_iter::<_, _, Keccak256>(DATA.iter());
         let expected_hash =
             compute_hash_cita_trie(DATA.iter().map(|(a, b)| (a.to_vec(), b.to_vec())).collect());
 
@@ -297,8 +294,7 @@ mod test {
             (&[0x03], &[0x03]),
         ];
 
-        let computed_hash =
-            compute_hash_from_sorted_iter::<_, _, Keccak256>(DATA.iter().map(|(a, b)| (a, b)));
+        let computed_hash = compute_hash_from_sorted_iter::<_, _, Keccak256>(DATA.iter());
         let expected_hash =
             compute_hash_cita_trie(DATA.iter().map(|(a, b)| (a.to_vec(), b.to_vec())).collect());
 
@@ -326,10 +322,7 @@ mod test {
     }
 
     fn compute_hash_ours(data: Vec<(Vec<u8>, Vec<u8>)>) -> Vec<u8> {
-        PatriciaMerkleTree::<_, _, Keccak256>::compute_hash_from_sorted_iter(
-            data.iter().map(|(a, b)| (a, b)),
-        )
-        .to_vec()
+        PatriciaMerkleTree::<_, _, Keccak256>::compute_hash_from_sorted_iter(data.iter()).to_vec()
     }
 
     fn compute_hash_cita_trie(data: Vec<(Vec<u8>, Vec<u8>)>) -> Vec<u8> {
