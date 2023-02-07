@@ -1,6 +1,6 @@
 #[cfg(all(unix))]
 mod storage_mdbx {
-    use self::error::Result;
+    pub use self::error::Result;
     use digest::{Digest, Output};
     use libmdbx::{Database, Geometry, NoWriteMap, WriteFlags};
     use patricia_merkle_tree::{Encode, PatriciaMerkleTree};
