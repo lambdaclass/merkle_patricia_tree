@@ -1,5 +1,5 @@
 use self::common::{bench_compute_hash, bench_get, bench_insert};
-use common::{bench_compute_hash_sorted, bench_compute_hash_inserts};
+use common::{bench_compute_hash_inserts, bench_compute_hash_sorted};
 use criterion::{criterion_group, criterion_main, Criterion};
 use sha3::Keccak256;
 use std::time::Duration;

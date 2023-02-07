@@ -4,7 +4,7 @@ use patricia_merkle_tree::PatriciaMerkleTree;
 use rand::{distributions::Uniform, prelude::Distribution, thread_rng, RngCore};
 use sha3::Keccak256;
 use std::{
-    collections::{BTreeMap},
+    collections::BTreeMap,
     time::{Duration, Instant},
 };
 
@@ -167,9 +167,7 @@ pub fn bench_compute_hash_inserts<const N: usize, H: Digest + Clone>() -> impl F
                 for (key, val) in iter {
                     tree.insert(key.as_slice(), val.as_slice());
                 }
-                black_box(
-                    tree.compute_hash()
-                );
+                black_box(tree.compute_hash());
                 delta += measure.elapsed();
             }
             delta
