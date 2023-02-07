@@ -11,7 +11,7 @@ mod storage_mdbx {
     use tempfile::tempdir;
     use uuid::Uuid;
 
-    mod error {
+    pub mod error {
         use thiserror::Error;
 
         pub type Result<T> = std::result::Result<T, Error>;
