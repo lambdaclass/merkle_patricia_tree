@@ -1,15 +1,15 @@
 use crate::{
     node::Node,
     nodes::{BranchNode, ExtensionNode, LeafNode},
-    NodeRef, PatriciaMerkleTree,
+    NodeRef, PatriciaMerkleTree, Encode,
 };
 use digest::Digest;
 use std::io::Write;
 
 pub struct TreeDump<'a, P, V, H, W>
 where
-    P: AsRef<[u8]>,
-    V: AsRef<[u8]>,
+    P: Encode,
+    V: Encode,
     H: Digest,
     W: Write,
 {
@@ -21,8 +21,8 @@ where
 
 impl<'a, P, V, H, W> TreeDump<'a, P, V, H, W>
 where
-    P: AsRef<[u8]>,
-    V: AsRef<[u8]>,
+    P: Encode,
+    V: Encode,
     H: Digest,
     W: Write,
 {
@@ -87,8 +87,8 @@ where
                 .get(*branch_node.value_ref)
                 .expect("inconsistent internal tree structure");
 
-            let path = path.as_ref();
-            let value = value.as_ref();
+            let path = path.encode();
+            let value = value.encode();
             write!(
                 self.writer,
                 "{indent}}} with_value {{ {path:02x?} => {value:02x?} }}"
@@ -119,8 +119,8 @@ where
             .get(*leaf_node.value_ref)
             .expect("inconsistent internal tree structure");
 
-        let path = path.as_ref();
-        let value = value.as_ref();
+        let path = path.encode();
+        let value = value.encode();
         write!(self.writer, "leaf {{ {path:02x?} => {value:02x?} }}").unwrap();
     }
 }
