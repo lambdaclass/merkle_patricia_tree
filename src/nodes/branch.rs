@@ -122,8 +122,6 @@ where
         (self.into(), insert_action)
     }
 
-    // TODO: When returning the children, what happens with an extension's prefix or a branch's
-    //   nibble alignment?
     pub fn remove(
         mut self,
         nodes: &mut NodesStorage<P, V, H>,

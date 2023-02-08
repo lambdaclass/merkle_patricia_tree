@@ -90,8 +90,6 @@ where
             let insert_action = insert_action.quantize_self(self.child_ref);
             (self.into(), insert_action)
         } else {
-            // TODO: Investigate why offset sometimes points after the last nibble in
-            //   `self.split_extract_at()` causing an assert to fail.
             let offset = path.clone().count_prefix_vec(&self.prefix);
             path.offset_add(offset);
             let (left_prefix, choice, right_prefix) = self.prefix.split_extract_at(offset);
