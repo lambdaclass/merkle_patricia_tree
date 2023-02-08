@@ -1,7 +1,7 @@
 use crate::{
     node::Node,
     nodes::{BranchNode, ExtensionNode, LeafNode},
-    NodeRef, PatriciaMerkleTree, Encode,
+    Encode, NodeRef, PatriciaMerkleTree,
 };
 use digest::Digest;
 use std::io::Write;
