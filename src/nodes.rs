@@ -77,13 +77,16 @@ macro_rules! pmt_node {
     ) => {{
         #[allow(unused_variables)]
         let offset = false $( ^ $offset )?;
+        let prefix = $crate::nibble::NibbleVec::from_nibbles(
+            $prefix
+                .into_iter()
+                .map(|x: u8| $crate::nibble::Nibble::try_from(x).unwrap()),
+            offset
+        );
+
+        let offset = offset  ^ (prefix.len() % 2 != 0);
         $crate::nodes::ExtensionNode::<Vec<u8>, _, sha3::Keccak256>::new(
-            $crate::nibble::NibbleVec::from_nibbles(
-                $prefix
-                    .into_iter()
-                    .map(|x: u8|  $crate::nibble::Nibble::try_from(x).unwrap()),
-                offset
-            ),
+            prefix,
             {
                 let child_node = pmt_node! { @($nodes, $values)
                     $child_type { $( $child_tokens )* }
