@@ -29,12 +29,16 @@ macro_rules! pmt_node {
     (
         @( $nodes:expr, $values:expr )
         branch { $( $choice:expr => $child_type:ident { $( $child_tokens:tt )* } ),+ $(,)? }
+        $( offset $offset:expr )?
     ) => {
         $crate::nodes::BranchNode::<Vec<u8>, _, sha3::Keccak256>::new({
+            #[allow(unused_variables)]
+            let offset = true $( ^ $offset )?;
             let mut choices = [$crate::storage::NodeRef::default(); 16];
             $(
                 let child_node = pmt_node! { @($nodes, $values)
                     $child_type { $( $child_tokens )* }
+                    offset offset
                 }.into();
                 let child_node = $nodes.insert(child_node);
                 choices[$choice as usize] = $crate::storage::NodeRef::new(child_node);
@@ -46,13 +50,17 @@ macro_rules! pmt_node {
         @( $nodes:expr, $values:expr )
         branch { $( $choice:expr => $child_type:ident { $( $child_tokens:tt )* } ),+ $(,)? }
         with_leaf { $path:expr => $value:expr }
+        $( offset $offset:expr )?
     ) => {{
         let mut branch_node = $crate::nodes::BranchNode::<Vec<u8>, _, sha3::Keccak256>::new({
+            #[allow(unused_variables)]
+            let offset = true $( ^ $offset )?;
             let mut choices = [$crate::storage::NodeRef::default(); 16];
             $(
                 choices[$choice as usize] = $crate::storage::NodeRef::new($nodes.insert(
                     pmt_node! { @($nodes, $values)
                         $child_type { $( $child_tokens )* }
+                        offset offset
                     }.into()
                 ));
             )*
@@ -65,23 +73,32 @@ macro_rules! pmt_node {
     (
         @( $nodes:expr, $values:expr )
         extension { $prefix:expr , $child_type:ident { $( $child_tokens:tt )* } }
-    ) => {
+        $( offset $offset:expr )?
+    ) => {{
+        #[allow(unused_variables)]
+        let offset = false $( ^ $offset )?;
         $crate::nodes::ExtensionNode::<Vec<u8>, _, sha3::Keccak256>::new(
             $crate::nibble::NibbleVec::from_nibbles(
                 $prefix
                     .into_iter()
-                    .map(|x: u8|  $crate::nibble::Nibble::try_from(x).unwrap())
+                    .map(|x: u8|  $crate::nibble::Nibble::try_from(x).unwrap()),
+                offset
             ),
             {
                 let child_node = pmt_node! { @($nodes, $values)
                     $child_type { $( $child_tokens )* }
+                    offset offset
                 }.into();
                 $crate::storage::NodeRef::new($nodes.insert(child_node))
             }
         )
-    };
+    }};
 
-    ( @( $nodes:expr, $values:expr ) leaf { $path:expr => $value:expr } ) => {
+    (
+        @( $nodes:expr, $values:expr )
+        leaf { $path:expr => $value:expr }
+        $( offset $offset:expr )?
+    ) => {
         $crate::nodes::LeafNode::<Vec<u8>, _, sha3::Keccak256>::new(
             $crate::storage::ValueRef::new($values.insert(($path, $value)))
         )

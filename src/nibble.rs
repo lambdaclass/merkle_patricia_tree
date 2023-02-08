@@ -302,9 +302,19 @@ impl NibbleVec {
     }
 
     #[cfg(test)]
-    pub fn from_nibbles(data_iter: impl Iterator<Item = Nibble>) -> Self {
+    pub fn from_nibbles(
+        data_iter: impl Iterator<Item = Nibble>,
+        starts_with_half_byte: bool,
+    ) -> Self {
         let mut last_is_half = false;
         let mut data = SmallVec::new();
+
+        let mut data_iter = data_iter.peekable();
+        if starts_with_half_byte && data_iter.peek().is_some() {
+            data.push(0);
+            last_is_half = true;
+        }
+
         for nibble in data_iter {
             if !last_is_half {
                 data.push((nibble as u8) << 4);
@@ -317,7 +327,7 @@ impl NibbleVec {
 
         Self {
             data,
-            first_is_half: false,
+            first_is_half: starts_with_half_byte,
             last_is_half,
         }
     }
