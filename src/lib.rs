@@ -89,58 +89,53 @@ where
         // Mark hash as dirty.
         self.hash.0 = false;
 
-        match self.nodes.try_remove(*self.root_ref) {
-            Some(root_node) => {
-                // If the tree is not empty, call the root node's insertion logic.
-                let encoded_path = path.encode();
-                let (root_node, insert_action) = root_node.insert(
-                    &mut self.nodes,
-                    &mut self.values,
-                    NibbleSlice::new(encoded_path.as_ref()),
-                );
-                self.root_ref = NodeRef::new(self.nodes.insert(root_node));
+        if let Some(root_node) = self.nodes.try_remove(*self.root_ref) {
+            // If the tree is not empty, call the root node's insertion logic.
+            let encoded_path = path.encode();
+            let (root_node, insert_action) = root_node.insert(
+                &mut self.nodes,
+                &mut self.values,
+                NibbleSlice::new(encoded_path.as_ref()),
+            );
+            self.root_ref = NodeRef::new(self.nodes.insert(root_node));
 
-                match insert_action.quantize_self(self.root_ref) {
-                    InsertAction::Insert(node_ref) => {
-                        let value_ref = ValueRef::new(self.values.insert((path, value)));
-                        match self
-                            .nodes
-                            .get_mut(*node_ref)
-                            .expect("inconsistent internal tree structure")
-                        {
-                            Node::Leaf(leaf_node) => leaf_node.update_value_ref(value_ref),
-                            Node::Branch(branch_node) => branch_node.update_value_ref(value_ref),
-                            _ => panic!("inconsistent internal tree structure"),
-                        };
+            match insert_action.quantize_self(self.root_ref) {
+                InsertAction::Insert(node_ref) => {
+                    let value_ref = ValueRef::new(self.values.insert((path, value)));
+                    match self
+                        .nodes
+                        .get_mut(*node_ref)
+                        .expect("inconsistent internal tree structure")
+                    {
+                        Node::Leaf(leaf_node) => leaf_node.update_value_ref(value_ref),
+                        Node::Branch(branch_node) => branch_node.update_value_ref(value_ref),
+                        _ => panic!("inconsistent internal tree structure"),
+                    };
 
-                        None
-                    }
-                    InsertAction::Replace(value_ref) => {
-                        let (_, old_value) = self
-                            .values
-                            .get_mut(*value_ref)
-                            .expect("inconsistent internal tree structure");
-
-                        Some(replace(old_value, value))
-                    }
-                    _ => unreachable!(),
+                    None
                 }
-            }
-            None => {
-                // If the tree is empty, just add a leaf.
-                let value_ref = ValueRef::new(self.values.insert((path, value)));
-                self.root_ref = NodeRef::new(self.nodes.insert(LeafNode::new(value_ref).into()));
+                InsertAction::Replace(value_ref) => {
+                    let (_, old_value) = self
+                        .values
+                        .get_mut(*value_ref)
+                        .expect("inconsistent internal tree structure");
 
-                None
+                    Some(replace(old_value, value))
+                }
+                _ => unreachable!(),
             }
+        } else {
+            // If the tree is empty, just add a leaf.
+            let value_ref = ValueRef::new(self.values.insert((path, value)));
+            self.root_ref = NodeRef::new(self.nodes.insert(LeafNode::new(value_ref).into()));
+
+            None
         }
     }
 
     /// Return the root hash of the tree (or recompute if needed).
     pub fn compute_hash(&mut self) -> &Output<H> {
-        if self.hash.0 {
-            &self.hash.1
-        } else {
+        if !self.hash.0 {
             if self.root_ref.is_valid() {
                 let root_node = self
                     .nodes
@@ -153,18 +148,14 @@ where
                     }
                     NodeHashRef::Hashed(x) => self.hash.1.copy_from_slice(&x),
                 }
-
-                self.hash.0 = true;
             } else {
                 H::new()
                     .chain_update([0x80])
                     .finalize_into(&mut self.hash.1);
-
-                self.hash.0 = true;
             }
-
-            &self.hash.1
+            self.hash.0 = true;
         }
+        &self.hash.1
     }
 
     /// Generate a tree from a sorted items iterator.

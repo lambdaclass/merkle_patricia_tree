@@ -144,11 +144,11 @@ where
         }
     }
 
-    pub fn path_len(value_len: usize) -> usize {
+    pub const fn path_len(value_len: usize) -> usize {
         Self::bytes_len((value_len >> 1) + 1, 0)
     }
 
-    pub fn bytes_len(value_len: usize, first_value: u8) -> usize {
+    pub const fn bytes_len(value_len: usize, first_value: u8) -> usize {
         match value_len {
             1 if first_value < 128 => 1,
             l if l < 56 => l + 1,
@@ -265,7 +265,7 @@ pub enum PathKind {
 }
 
 impl PathKind {
-    fn into_flag(self) -> u8 {
+    const fn into_flag(self) -> u8 {
         match self {
             PathKind::Extension => 0x00,
             PathKind::Leaf => 0x20,
@@ -273,7 +273,7 @@ impl PathKind {
     }
 }
 
-fn compute_byte_usage(value: usize) -> usize {
+const fn compute_byte_usage(value: usize) -> usize {
     let bits_used = usize::BITS as usize - value.leading_zeros() as usize;
     (bits_used.saturating_sub(1) >> 3) + 1
 }
