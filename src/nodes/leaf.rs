@@ -175,24 +175,31 @@ where
             let encoded_path = path.encode();
             let encoded_value = value.encode();
 
-            let (path_len, path_slice) = {
-                let mut path_slice = NibbleSlice::new(encoded_path.as_ref());
-                path_slice.offset_add(path_offset);
+            let mut path_slice = NibbleSlice::new(encoded_path.as_ref());
+            path_slice.offset_add(path_offset);
 
-                (NodeHasher::<H>::path_len(path_slice.len()), path_slice)
-            };
-            let value_len = NodeHasher::<H>::bytes_len(
-                encoded_value.len(),
-                encoded_value.first().copied().unwrap_or_default(),
-            );
-
-            let mut hasher = NodeHasher::new(&self.hash);
-            hasher.write_list_header(path_len + value_len);
-            hasher.write_path_slice(&path_slice, PathKind::Leaf);
-            hasher.write_bytes(encoded_value.as_ref());
-            hasher.finalize()
+            compute_leaf_hash(&self.hash, path_slice, encoded_value.as_ref())
         })
     }
+}
+
+pub fn compute_leaf_hash<'a, H>(
+    hash: &'a NodeHash<H>,
+    path: NibbleSlice,
+    value: &[u8],
+) -> NodeHashRef<'a, H>
+where
+    H: Digest,
+{
+    let path_len = NodeHasher::<H>::path_len(path.len());
+    let value_len =
+        NodeHasher::<H>::bytes_len(value.len(), value.first().copied().unwrap_or_default());
+
+    let mut hasher = NodeHasher::new(hash);
+    hasher.write_list_header(path_len + value_len);
+    hasher.write_path_slice(&path, PathKind::Leaf);
+    hasher.write_bytes(value);
+    hasher.finalize()
 }
 
 #[cfg(test)]

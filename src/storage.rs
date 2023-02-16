@@ -17,7 +17,7 @@ impl NodeRef {
         Self(value)
     }
 
-    pub fn is_valid(&self) -> bool {
+    pub const fn is_valid(&self) -> bool {
         self.0 != INVALID_REF
     }
 }
@@ -46,7 +46,7 @@ impl ValueRef {
         Self(value)
     }
 
-    pub fn is_valid(&self) -> bool {
+    pub const fn is_valid(&self) -> bool {
         self.0 != INVALID_REF
     }
 }

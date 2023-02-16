@@ -1,4 +1,8 @@
-pub use self::{branch::BranchNode, extension::ExtensionNode, leaf::LeafNode};
+pub use self::{
+    branch::{compute_branch_hash, BranchNode},
+    extension::{compute_extension_hash, ExtensionNode},
+    leaf::{compute_leaf_hash, LeafNode},
+};
 
 mod branch;
 mod extension;

@@ -3,7 +3,10 @@ use digest::Digest;
 use patricia_merkle_tree::PatriciaMerkleTree;
 use rand::{distributions::Uniform, prelude::Distribution, thread_rng, RngCore};
 use sha3::Keccak256;
-use std::time::{Duration, Instant};
+use std::{
+    collections::BTreeMap,
+    time::{Duration, Instant},
+};
 
 pub fn bench_get<const N: usize>() -> impl FnMut(&mut Bencher) {
     // Generate a completely random Patricia Merkle tree.
@@ -126,6 +129,90 @@ pub fn bench_compute_hash<const N: usize, H: Digest + Clone>() -> impl FnMut(&mu
                 let mut tree = tree.clone();
                 let measure = Instant::now();
                 black_box(tree.compute_hash());
+                delta += measure.elapsed();
+            }
+            delta
+        });
+    }
+}
+
+pub fn bench_compute_hash_inserts<const N: usize, H: Digest + Clone>() -> impl FnMut(&mut Bencher) {
+    let mut rng = thread_rng();
+    let distr = Uniform::from(16..=64);
+    let mut data = BTreeMap::new();
+
+    while data.len() < N {
+        let path_len = distr.sample(&mut rng) as usize;
+
+        let mut path = vec![0; path_len];
+        rng.fill_bytes(&mut path);
+
+        let value_len = distr.sample(&mut rng) as usize;
+
+        let mut value = vec![0; value_len];
+        rng.fill_bytes(&mut value);
+
+        data.insert(path, value);
+    }
+
+    move |b| {
+        let data: Vec<_> = data.clone().into_iter().collect();
+        let data: Vec<_> = data
+            .iter()
+            .map(|x| (x.0.as_slice(), x.1.as_slice()))
+            .collect();
+
+        b.iter_custom(|num_iters| {
+            let mut delta = Duration::ZERO;
+            for _ in 0..num_iters {
+                let iter = data.iter();
+                let measure = Instant::now();
+                let mut tree = PatriciaMerkleTree::<_, _, H>::new();
+                for (key, val) in iter {
+                    tree.insert(black_box(*key), black_box(*val));
+                }
+                black_box(tree.compute_hash());
+                delta += measure.elapsed();
+            }
+            delta
+        });
+    }
+}
+
+pub fn bench_compute_hash_sorted<const N: usize, H: Digest + Clone>() -> impl FnMut(&mut Bencher) {
+    let mut rng = thread_rng();
+    let distr = Uniform::from(16..=64);
+    let mut data = BTreeMap::new();
+
+    while data.len() < N {
+        let path_len = distr.sample(&mut rng) as usize;
+
+        let mut path = vec![0; path_len];
+        rng.fill_bytes(&mut path);
+
+        let value_len = distr.sample(&mut rng) as usize;
+
+        let mut value = vec![0; value_len];
+        rng.fill_bytes(&mut value);
+
+        data.insert(path, value);
+    }
+
+    move |b| {
+        let data: Vec<_> = data.clone().into_iter().collect();
+        let data: Vec<_> = data
+            .iter()
+            .map(|x| (x.0.as_slice(), x.1.as_slice()))
+            .collect();
+
+        b.iter_custom(|num_iters| {
+            let mut delta = Duration::ZERO;
+            for _ in 0..num_iters {
+                let iter = data.iter();
+                let measure = Instant::now();
+                black_box(
+                    PatriciaMerkleTree::<_, _, H>::compute_hash_from_sorted_iter(black_box(iter)),
+                );
                 delta += measure.elapsed();
             }
             delta

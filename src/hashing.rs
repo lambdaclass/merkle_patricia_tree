@@ -6,6 +6,39 @@ use std::{
     mem::size_of,
 };
 
+#[derive(Debug)]
+pub struct DelimitedHash<H>(pub Output<H>, pub usize)
+where
+    H: Digest;
+
+impl<H> AsRef<[u8]> for DelimitedHash<H>
+where
+    H: Digest,
+{
+    fn as_ref(&self) -> &[u8] {
+        &self.0[..self.1]
+    }
+}
+
+impl<H> Default for DelimitedHash<H>
+where
+    H: Digest,
+{
+    fn default() -> Self {
+        Self(Default::default(), 0)
+    }
+}
+
+impl<H> From<NodeHash<H>> for DelimitedHash<H>
+where
+    H: Digest,
+{
+    fn from(value: NodeHash<H>) -> Self {
+        let (data, len) = value.into_inner();
+        Self(data, len)
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NodeHash<H>
 where
@@ -32,6 +65,11 @@ where
             32 => Some(NodeHashRef::Hashed(hash_ref)),
             l => Some(NodeHashRef::Inline(Ref::map(hash_ref, |x| &x[..l]))),
         }
+    }
+
+    #[warn(warnings)]
+    pub fn into_inner(self) -> (Output<H>, usize) {
+        (self.hash_ref.into_inner(), self.length.into_inner())
     }
 }
 
@@ -106,11 +144,11 @@ where
         }
     }
 
-    pub fn path_len(value_len: usize) -> usize {
+    pub const fn path_len(value_len: usize) -> usize {
         Self::bytes_len((value_len >> 1) + 1, 0)
     }
 
-    pub fn bytes_len(value_len: usize, first_value: u8) -> usize {
+    pub const fn bytes_len(value_len: usize, first_value: u8) -> usize {
         match value_len {
             1 if first_value < 128 => 1,
             l if l < 56 => l + 1,
@@ -227,7 +265,7 @@ pub enum PathKind {
 }
 
 impl PathKind {
-    fn into_flag(self) -> u8 {
+    const fn into_flag(self) -> u8 {
         match self {
             PathKind::Extension => 0x00,
             PathKind::Leaf => 0x20,
@@ -235,7 +273,7 @@ impl PathKind {
     }
 }
 
-fn compute_byte_usage(value: usize) -> usize {
+const fn compute_byte_usage(value: usize) -> usize {
     let bits_used = usize::BITS as usize - value.leading_zeros() as usize;
     (bits_used.saturating_sub(1) >> 3) + 1
 }
