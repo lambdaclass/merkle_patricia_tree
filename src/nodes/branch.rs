@@ -1,7 +1,7 @@
 use super::{ExtensionNode, LeafNode};
 use crate::{
     hashing::{DelimitedHash, NodeHash, NodeHashRef, NodeHasher},
-    nibble::NibbleSlice,
+    nibble::{Nibble, NibbleSlice, NibbleVec},
     node::{InsertAction, Node},
     Encode, NodeRef, NodesStorage, ValueRef, ValuesStorage,
 };
