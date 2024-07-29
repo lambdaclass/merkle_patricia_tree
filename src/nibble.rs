@@ -275,7 +275,7 @@ impl<'a> Iterator for NibbleSlice<'a> {
             };
 
             self.offset += 1;
-            Nibble::try_from(byte).map_or_else(|_| unreachable!(), |x| x)
+            Nibble::try_from(byte).unwrap_or_else(|_| unreachable!())
         })
     }
 }
@@ -379,7 +379,7 @@ impl NibbleVec {
         } else {
             self.data[offset >> 1] >> 4
         };
-        let value = Nibble::try_from(value).map_or_else(|_| unreachable!(), |x| x);
+        let value = Nibble::try_from(value).unwrap_or_else(|_| unreachable!());
 
         let offset = (index + 1 + self.first_is_half as usize) >> 1;
         let mut right_vec = NibbleVec {
