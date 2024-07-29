@@ -44,7 +44,7 @@ Its structure is implemented to match Ethereum's [Patricia Merkle Trees](https:/
 Here's an example to calculate the hash after inserting a few items.
 
 ```rust
-use merkle_patricia_tree::PatriciaMerkleTree;
+use patricia_merkle_tree::PatriciaMerkleTree;
 use sha3::Keccak256;
 
 let mut tree = PatriciaMerkleTree::<&[u8], &[u8], Keccak256>::new();
@@ -52,7 +52,7 @@ tree.insert(b"doe", b"reindeer");
 tree.insert(b"dog", b"puppy");
 tree.insert(b"dogglesworth", b"cat");
 
-let hash = tree.compute_hash().unwrap();
+let hash = tree.compute_hash();
 println!("{hash:02x}");
 ```
 
