@@ -1,4 +1,4 @@
-#[cfg(all(unix))]
+#[cfg(unix)]
 mod storage_mdbx {
     pub use self::error::Result;
     use digest::{Digest, Output};
@@ -159,7 +159,7 @@ mod storage_mdbx {
     }
 }
 
-#[cfg(all(unix))]
+#[cfg(unix)]
 fn main() {
     storage_mdbx::run().unwrap();
 }
