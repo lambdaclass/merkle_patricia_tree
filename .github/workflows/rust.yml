@@ -35,4 +35,4 @@ jobs:
     - name: Upload coverage to codecov.io
       uses: codecov/codecov-action@v3
       with:
-        fail_ci_if_error:     true
+        fail_ci_if_error:     false
